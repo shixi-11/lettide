@@ -1,3 +1,4 @@
+nodeLinker: hoisted
 allowBuilds:
   electron: true
   app-builder-bin: true
