@@ -1,0 +1,75 @@
+{
+  "name": "lettide",
+  "version": "0.1.0",
+  "description": "Lettide — a calm home for your mail",
+  "author": "Shixi Lin",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "private": true,
+  "main": "main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --win dir",
+    "build": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.lettide.desktop",
+    "productName": "Lettide",
+    "directories": {
+      "output": "../output/desktop"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../backend",
+        "to": "backend",
+        "filter": [
+          "src/**",
+          "package.json"
+        ]
+      },
+      {
+        "from": "../backend/node_modules",
+        "to": "backend/node_modules",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "../web/dist",
+        "to": "web/dist"
+      },
+      {
+        "from": "../LICENSE",
+        "to": "LICENSE"
+      },
+      {
+        "from": "../NOTICE",
+        "to": "NOTICE"
+      },
+      {
+        "from": "../scripts/Configure-AI.ps1",
+        "to": "scripts/Configure-AI.ps1"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "signExecutable": false,
+      "icon": "assets/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "叠信 Lettide",
+      "artifactName": "Lettide-Setup-${version}.${ext}"
+    }
+  }
+}

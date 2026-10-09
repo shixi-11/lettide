@@ -1,0 +1,11 @@
+node_modules/
+dist/
+output/
+.local/
+*.log
+*.dpapi
+*.tmp
+.env*
+!.env.example
+.DS_Store
+docs/交接.md
