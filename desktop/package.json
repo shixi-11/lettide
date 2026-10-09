@@ -1,6 +1,6 @@
 {
   "name": "lettide",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Lettide — a calm home for your mail",
   "author": "Shixi Lin",
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -9,7 +9,8 @@
   "scripts": {
     "start": "electron .",
     "pack": "electron-builder --win dir",
-    "build": "electron-builder --win nsis"
+    "build": "electron-builder --win nsis",
+    "build:release": "node ../scripts/Build-Desktop.mjs"
   },
   "devDependencies": {
     "electron": "44.7.0",
@@ -24,7 +25,10 @@
     "files": [
       "main.cjs",
       "preload.cjs",
-      "package.json"
+      "package.json",
+      "assets/icon.png",
+      "assets/icon.svg",
+      "build-locale.json"
     ],
     "extraResources": [
       {
@@ -62,6 +66,10 @@
       {
         "from": "../scripts/Configure-AI.ps1",
         "to": "scripts/Configure-AI.ps1"
+      },
+      {
+        "from": "../scripts/Configure-AI.mjs",
+        "to": "scripts/Configure-AI.mjs"
       }
     ],
     "win": {
@@ -73,8 +81,38 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "叠信 Lettide",
-      "artifactName": "Lettide-Setup-${version}.${ext}"
+      "shortcutName": "叠信",
+      "artifactName": "Lettide-Setup-${version}.${ext}",
+      "installerLanguages": [
+        "zh_CN",
+        "en_US"
+      ],
+      "displayLanguageSelector": true,
+      "runAfterFinish": false
+    },
+    "executableName": "Lettide",
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.productivity",
+      "icon": "assets/icon.icns",
+      "minimumSystemVersion": "12.0",
+      "hardenedRuntime": false,
+      "identity": null
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 150,
+          "y": 180,
+          "type": "file"
+        },
+        {
+          "x": 430,
+          "y": 180,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ]
     }
   }
 }

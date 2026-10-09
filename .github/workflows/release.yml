@@ -1,0 +1,62 @@
+name: Desktop installers
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+        language: [zh-CN, en]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.25.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Install locked dependencies
+        shell: bash
+        run: |
+          for folder in backend web desktop; do
+            (cd "$folder" && pnpm install --frozen-lockfile)
+          done
+          cd desktop && node node_modules/electron/install.js
+      - name: Backend checks, including real OS protected storage
+        shell: bash
+        run: node --test backend/tests/*.test.js
+      - name: Build interface
+        working-directory: web
+        run: pnpm build
+      - name: Build desktop installer
+        shell: bash
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+        run: |
+          args=""
+          if [ "${{ runner.os }}" = "macOS" ]; then args="$args --mac"; fi
+          if [ "${{ matrix.language }}" = "en" ]; then args="$args --en"; fi
+          node scripts/Build-Desktop.mjs $args
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ runner.os }}-${{ matrix.language }}
+          path: |
+            output/desktop/*.exe
+            output/desktop/*.dmg
+          if-no-files-found: error
+          retention-days: 14
+      - name: Publish tagged release installers
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          shopt -s nullglob
+          files=(output/desktop/*.exe output/desktop/*.dmg)
+          gh release upload "$GITHUB_REF_NAME" "${files[@]}" --clobber

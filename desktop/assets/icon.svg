@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+ <defs>
+  <linearGradient id="tile" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#dbefff"/><stop offset=".5" stop-color="#a5c9ff"/><stop offset="1" stop-color="#8b9af2"/></linearGradient>
+  <linearGradient id="front" x1="0" y1="0" x2=".8" y2="1"><stop stop-color="#438bff"/><stop offset="1" stop-color="#3454dd"/></linearGradient>
+  <linearGradient id="back" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#f5fbff"/><stop offset="1" stop-color="#8cbeff"/></linearGradient>
+  <clipPath id="clip"><rect x="24" y="24" width="464" height="464" rx="108"/></clipPath>
+ </defs>
+ <rect x="24" y="24" width="464" height="464" rx="108" fill="url(#tile)"/>
+ <g clip-path="url(#clip)">
+  <rect x="24" y="24" width="464" height="464" rx="108" fill="none" stroke="#fff" stroke-opacity=".5" stroke-width="4"/>
+  <g transform="rotate(-12 235 230)">
+   <rect x="83" y="130" width="294" height="216" rx="36" fill="#3d65ba" opacity=".16" transform="translate(0 12)"/>
+   <rect x="83" y="130" width="294" height="216" rx="36" fill="url(#back)" stroke="#f2faff" stroke-opacity=".8" stroke-width="3"/>
+   <path d="m106 155 109 82q16 12 31 0l108-82" fill="none" stroke="#5d97eb" stroke-width="17" stroke-linecap="round"/>
+  </g>
+  <rect x="137" y="213" width="300" height="215" rx="36" fill="#334ba9" opacity=".18" transform="translate(0 13)"/>
+  <rect x="137" y="206" width="300" height="215" rx="36" fill="url(#front)"/>
+  <path d="M158 238c45 22 82 79 128 80 46 1 84-55 131-80" fill="none" stroke="#fff" stroke-width="19" stroke-linecap="round"/>
+  <path d="M157 390l71-64m189 64-71-64" fill="none" stroke="#d2e5ff" stroke-opacity=".28" stroke-width="6" stroke-linecap="round"/>
+ </g>
+</svg>
