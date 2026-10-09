@@ -132,6 +132,3 @@ test('public messages expose folder membership and replyTo but never attachment 
  assert.deepEqual(visible.folderIds,['inbox','gmail:label']);assert.equal(visible.replyTo,'reply@example.test');assert.equal(visible.attachments[0].content,undefined);
  const headers=googleHeaders({headers:[{name:'reply-to',value:'Reply Person <reply@example.test>'}]},'1700000000000');assert.deepEqual(headers.replyTo,[{name:'Reply Person',address:'reply@example.test'}]);
 });
-
-
-
