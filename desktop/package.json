@@ -39,7 +39,12 @@
         "from": "../backend/node_modules",
         "to": "backend/node_modules",
         "filter": [
-          "**/*"
+          "**/*",
+          "!.modules.yaml",
+          "!.package-map.json",
+          "!.pnpm-workspace-state-v1.json",
+          "!.pnpm/**",
+          "!.bin/**"
         ]
       },
       {
