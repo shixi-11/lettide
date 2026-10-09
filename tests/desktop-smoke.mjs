@@ -19,7 +19,7 @@ const checks=[];
 try{
  const page=await app.firstWindow();await page.getByRole('heading',{name:'收件箱',exact:true}).waitFor();
  assert.deepEqual(await page.evaluate(()=>({require:typeof window.require,node:typeof window.process,desktop:window.lettide?.desktop})),{require:'undefined',node:'undefined',desktop:true});checks.push('Native window keeps renderer isolated');
- assert.equal(await app.evaluate(({app})=>app.getVersion()),'0.2.0');checks.push('App version is 0.2.0');
+ assert.equal(await app.evaluate(({app})=>app.getVersion()),'0.2.1');checks.push('App version is 0.2.1');
  await app.evaluate(({shell})=>{shell.openExternal=async url=>{globalThis.__external=url;};});
  await page.evaluate(()=>window.lettide.openExternal('https://mail.qq.com/'));
  assert.equal(await app.evaluate(()=>globalThis.__external),'https://mail.qq.com/');
