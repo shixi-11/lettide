@@ -2,16 +2,16 @@
 
 A calmer home for Gmail, Outlook, GoDaddy and QQ Mail, with inline translation and shared mail tools for Codex and Claude.
 
-**Preview 0.3.2** · [Downloads](https://github.com/shixi-11/lettide/releases/tag/v0.3.2) · [Changelog](CHANGELOG.md) · [中文说明](README.md)
+**Preview 0.3.3** · [Downloads](https://github.com/shixi-11/lettide/releases/tag/v0.3.3) · [Changelog](CHANGELOG.md) · [中文说明](README.md)
 
 | Platform | English installer | Chinese installer |
 | --- | --- | --- |
-| Windows 10 / 11, x64 | [Lettide](https://github.com/shixi-11/lettide/releases/download/v0.3.2/Lettide-0.3.2-win-x64-en.exe) | [叠信](https://github.com/shixi-11/lettide/releases/download/v0.3.2/Lettide-0.3.2-win-x64-zh-CN.exe) |
-| macOS 12+, Apple Silicon and Intel | [Lettide DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.2/Lettide-0.3.2-mac-universal-en.dmg) | [叠信 DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.2/Lettide-0.3.2-mac-universal-zh-CN.dmg) |
+| Windows 10 / 11, x64 | [Lettide](https://github.com/shixi-11/lettide/releases/download/v0.3.3/Lettide-0.3.3-win-x64-en.exe) | [叠信](https://github.com/shixi-11/lettide/releases/download/v0.3.3/Lettide-0.3.3-win-x64-zh-CN.exe) |
+| macOS 12+, Apple Silicon and Intel | [Lettide DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.3/Lettide-0.3.3-mac-universal-en.dmg) | [叠信 DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.3/Lettide-0.3.3-mac-universal-zh-CN.dmg) |
 
 Run the Windows installer, or open the DMG and drag the app into Applications. Node.js is included. Choose English, Chinese or the system language in Settings. These preview installers are unsigned; the Mac app is not notarized. Downloads appear when the corresponding build finishes. Automated Mac builds do not constitute a physical Mac UI acceptance test.
 
-Read and search cached mail, sync folders and Gmail labels, archive, move, restore, star, reply, forward, save drafts and send attachments. Each folder currently caches its latest 60 emails. Each message supports ten attachments and 10 MB total.
+Read and search cached mail, sync folders and Gmail labels, archive, move, restore, star, reply, forward, save drafts and send attachments. Each folder currently caches its latest 60 emails. QQ and other IMAP accounts load the list first, then download and cache the body and attachments when you open a message. Offline reading and body searches use downloaded content. Each message supports ten attachments and 10 MB total.
 
 Use the account switcher at the top left to choose or search your accounts. Folders and labels belong to the selected account; choose All inboxes for a unified view. Each account remembers its last folder during the current session.
 

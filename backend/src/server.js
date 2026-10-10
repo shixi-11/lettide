@@ -5,7 +5,7 @@ import path from 'node:path';
 const appVersion=JSON.parse(await fs.readFile(new URL('../package.json',import.meta.url),'utf8')).version;
 import {fileURLToPath} from 'node:url';
 import {Store,newId,publicAccount} from './store.js';
-import {syncAccount,publicMessage,updateRemote,sendMail,testImap,testSmtp,listRemoteFolders} from './mail.js';
+import {syncAccount,loadMessageBody,publicMessage,updateRemote,sendMail,testImap,testSmtp,listRemoteFolders} from './mail.js';
 import {translateGoogle,languageCodes} from './translate.js';
 import {LocalTranslator} from './local-translate.js';
 import {registerAccountManagement} from './account-management.js';
@@ -13,8 +13,10 @@ import {registerAccountManagement} from './account-management.js';
 const defaultStaticRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../web/dist');
 function validAttachments(value){return value===undefined||Array.isArray(value)&&value.length<=10&&value.every(a=>a&&typeof a.filename==='string'&&a.filename.length>0&&a.filename.length<=255&&!/[\r\n]/.test(a.filename)&&typeof a.content==='string'&&/^[A-Za-z0-9+/]*={0,2}$/.test(a.content)&&Buffer.from(a.content,'base64').length<=10*1024*1024)&&value.reduce((n,a)=>n+Buffer.from(a.content,'base64').length,0)<=10*1024*1024;}
 const validRecipients=d=>!!String(d.to||'').trim()&&[d.to,d.cc,d.bcc].filter(Boolean).every(v=>!/[\r\n]/.test(String(v))&&String(v).split(',').every(x=>/^\s*[^\s<>@,]+@[^\s<>@,]+\s*$/.test(x)));
-export async function createApp({store=new Store(),staticRoot=defaultStaticRoot,port=47831,mailSender=sendMail,googleTranslator=translateGoogle,localTranslator=null,folderLister=listRemoteFolders,mailSyncer=syncAccount,messageUpdater=updateRemote,accountTester=async a=>{await testImap(a);await testSmtp(a);}}={}) {
+export async function createApp({store=new Store(),staticRoot=defaultStaticRoot,port=47831,mailSender=sendMail,googleTranslator=translateGoogle,localTranslator=null,folderLister=listRemoteFolders,mailSyncer=syncAccount,messageLoader=loadMessageBody,messageUpdater=updateRemote,accountTester=async a=>{await testImap(a);await testSmtp(a);}}={}) {
  await store.open(); const app=express(), pendingOAuth=new Map();app.locals.store=store;app.locals.mailSyncer=mailSyncer;app.locals.folderLister=folderLister;
+ const syncTasks=new Map();
+ app.locals.syncFolder=(accountId,folder)=>{const key=JSON.stringify([accountId,folder]);let work=syncTasks.get(key);if(!work){work=store.mutate(state=>{const account=state.accounts.find(a=>a.id===accountId);if(!account)return;const custom=!['inbox','sent','drafts','archive','junk','trash'].includes(folder);return mailSyncer(state,account,custom?{id:folder,accountId}:folder,'',60,{metadataOnly:true})});syncTasks.set(key,work);work.finally(()=>syncTasks.delete(key)).catch(()=>{});}return work;};
  app.disable('x-powered-by'); app.use(express.json({limit:'20mb'}));app.use((req,res,next)=>{res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Frame-Options','DENY');res.setHeader('Cache-Control','no-store');next();});
 const loopHost=h=>['127.0.0.1','localhost','[::1]'].includes((h.match(/^\[::1\]|^[^:]+/)||[])[0])&&h.endsWith(`:${port}`);
 app.use((req,res,next)=>!loopHost(req.headers.host||'')&&!(req.method==='GET'&&req.path==='/api/oauth/callback')?res.sendStatus(403):next());
@@ -57,15 +59,17 @@ app.post('/api/oauth/prepare',(req,res)=>{try{res.json(prepareOAuth(req.body?.pr
 app.get('/api/oauth/start',(req,res)=>{try{const result=prepareOAuth(req.query.provider);result.url?res.redirect(result.url):res.status(409).json(result);}catch{res.status(400).send('Unsupported provider');}});
 app.get('/api/oauth/callback',async(req,res)=>{const p=pendingOAuth.get(req.query.state);pendingOAuth.delete(req.query.state);if(!p||Date.now()-p.created>600000)return res.status(400).send('OAuth state expired');const s=store.state.settings,client=p.client,secret=p.secret,url=p.provider==='gmail'?'https://oauth2.googleapis.com/token':'https://login.microsoftonline.com/common/oauth2/v2.0/token';try{const body=new URLSearchParams({client_id:client,redirect_uri:'http://127.0.0.1:'+port+'/api/oauth/callback',grant_type:'authorization_code',code:req.query.code,code_verifier:p.verifier});if(secret)body.set('client_secret',secret);const r=await fetch(url,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body,signal:AbortSignal.timeout(15000)});if(!r.ok)throw 0;const t=await r.json();const profile=await fetch(p.provider==='gmail'?'https://gmail.googleapis.com/gmail/v1/users/me/profile':'https://graph.microsoft.com/v1.0/me?$select=displayName,mail,userPrincipalName',{headers:{Authorization:`Bearer ${t.access_token}`},signal:AbortSignal.timeout(15000)});if(!profile.ok)throw 0;const me=await profile.json(),email=me.emailAddress||me.mail||me.userPrincipalName;if(!email)throw 0;const existing=store.state.accounts.find(x=>x.provider===p.provider&&x.email.toLowerCase()===email.toLowerCase());if(!t.refresh_token&&!existing?.refreshToken)throw 0;const a={id:existing?.id||newId(),provider:p.provider,name:me.displayName||email,email,accessToken:t.access_token,refreshToken:t.refresh_token||existing.refreshToken,expiresAt:Date.now()+t.expires_in*1000,createdAt:existing?.createdAt||new Date().toISOString(),verifiedAt:new Date().toISOString()};await store.mutate(x=>{const old=x.accounts.find(y=>y.provider===p.provider&&y.email.toLowerCase()===email.toLowerCase());if(old)Object.assign(old,a,{id:old.id});else x.accounts.push(a);});res.type('html').send('<meta charset="utf-8"><title>Lettide</title><p>邮箱已连接，可以关闭此页面，返回叠信。</p><p>Account connected. You can close this page and return to Lettide.</p>');}catch{res.status(400).send('OAuth authorization failed or did not grant persistent access; no credential details were logged');}});
 app.get('/api/messages',(req,res)=>{const {accountId,folder='inbox',query='',unread,limit='100'}=req.query;if(!['inbox','sent','drafts','archive','junk','trash'].includes(folder)&&!store.state.accounts.some(a=>(!accountId||a.id===accountId)&&(a.folders||[]).some(f=>f.id===folder)))return res.status(400).json({error:'Invalid folder'});let rows=store.state.messages.filter(m=>(!accountId||m.accountId===accountId)&&(m.folderIds||[m.folder||'inbox']).includes(folder));if(query)rows=rows.filter(m=>`${m.subject} ${m.text} ${m.from?.address}`.toLowerCase().includes(String(query).toLowerCase()));if(unread!==undefined)rows=rows.filter(m=>m.unread===(unread==='true'));rows.sort((a,b)=>Date.parse(b.date)-Date.parse(a.date));res.json({items:rows.slice(0,Math.min(200,Math.max(1,+limit||100))).map(publicMessage),total:rows.length});});
-app.get('/api/messages/:id',(req,res)=>{const m=store.state.messages.find(x=>x.id===req.params.id);m?res.json(publicMessage(m)):res.sendStatus(404);});
+const bodyLoads=new Map();
+ async function ensureBody(id){const current=store.state.messages.find(x=>x.id===id);if(!current||current.bodyLoaded!==false)return current;let work=bodyLoads.get(id);if(!work){work=store.mutate(async state=>{const m=state.messages.find(x=>x.id===id);if(m)await messageLoader(state,m);return m;});bodyLoads.set(id,work);work.finally(()=>bodyLoads.delete(id)).catch(()=>{});}return work;}
+ app.get('/api/messages/:id',async(req,res)=>{try{const m=await ensureBody(req.params.id);m?res.json(publicMessage(m)):res.sendStatus(404)}catch{res.status(502).json({error:'Could not load email content. Please retry.'})}});
 app.post('/api/sync',async(req,res)=>{
  const accounts=store.state.accounts.filter(a=>!req.body?.accountId||a.id===req.body.accountId);
  if(req.body?.accountId&&!accounts.length)return res.sendStatus(404);
  const selected=req.body?.folder,errors=[],synced=new Set();
- for(const a of accounts){let ok=true;try{await store.mutate(async state=>{const account=state.accounts.find(x=>x.id===a.id);const folders=await folderLister(state,account);account.folders=folders.map(f=>({...f,accountId:a.id}));account.foldersSyncedAt=new Date().toISOString();});}catch{ok=false;errors.push({accountId:a.id,error:'Folder sync failed'});}
+ for(const a of accounts){let ok=true;try{if(!a.foldersSyncedAt||Date.now()-Date.parse(a.foldersSyncedAt)>600000)await store.mutate(async state=>{const account=state.accounts.find(x=>x.id===a.id);const folders=await folderLister(state,account);account.folders=folders.map(f=>({...f,accountId:a.id}));account.foldersSyncedAt=new Date().toISOString();});}catch{ok=false;errors.push({accountId:a.id,error:'Folder sync failed'});}
  const folders=selected?[selected]:[...new Set(['inbox','sent',...(store.state.accounts.find(x=>x.id===a.id)?.folders||[]).map(f=>f.id)])];
  for(const folder of folders){const custom=!['inbox','sent','drafts','archive','junk','trash'].includes(folder),known=store.state.accounts.find(x=>x.id===a.id)?.folders?.find(f=>f.id===folder);if(custom&&!known){ok=false;errors.push({accountId:a.id,folder,error:'Invalid folder'});continue;}
- try{await store.mutate(state=>mailSyncer(state,state.accounts.find(x=>x.id===a.id),custom?{id:folder,accountId:a.id}:folder,'',60));}catch{ok=false;errors.push({accountId:a.id,folder,error:'Sync failed; check connection settings'});}}
+ try{await app.locals.syncFolder(a.id,folder);}catch{ok=false;errors.push({accountId:a.id,folder,error:'Sync failed; check connection settings'});}}
  if(ok)synced.add(a.id);
  }res.json({synced:synced.size,errors});
 });
@@ -78,7 +82,7 @@ app.post('/api/drafts/:id/send',async(req,res)=>{const key=req.get('Idempotency-
 const onlineInFlight=new Map();
 app.post('/api/translations',async(req,res)=>{
  const b=req.body||{};if(!languageCodes[b.targetLanguage]||(!b.text&&!b.messageId))return res.status(400).json({error:'Text or messageId and a supported targetLanguage are required'});
- let text=b.text;if(b.messageId){const m=store.state.messages.find(x=>x.id===b.messageId);if(!m)return res.sendStatus(404);text=m.text;}
+ let text=b.text;if(b.messageId){let m;try{m=await ensureBody(b.messageId)}catch{return res.status(502).json({error:'Could not load email content. Please retry.'})}if(!m)return res.sendStatus(404);text=m.text;}
  if(typeof text!=='string'||!text.trim()||text.length>100000)return res.status(400).json({error:'Email text is empty or too long to translate'});
  const mode=b.mode||'local';
  if(!['local','google','assistant','ollama'].includes(mode))return res.status(400).json({error:'Unsupported translation mode'});
@@ -119,7 +123,7 @@ export async function startService(options={}){
    const current=serviceStore.state.accounts.find(x=>x.id===a.id);if(!current)continue;
    const extras=(current.folders||[]).filter(f=>!['inbox','sent'].includes(f.id));
    const batch=['inbox','sent',...Array.from({length:Math.min(3,extras.length)},(_,i)=>extras[(cursor+i)%extras.length].id)];
-   for(const folder of new Set(batch)){if(stopped)break;try{await serviceStore.mutate(state=>{const account=state.accounts.find(x=>x.id===a.id);if(!account)return;return app.locals.mailSyncer(state,account,['inbox','sent','drafts','archive','junk','trash'].includes(folder)?folder:{id:folder,accountId:a.id},'',60);});}catch{}}
+   for(const folder of new Set(batch)){if(stopped)break;try{await app.locals.syncFolder(a.id,folder);}catch{}}
   }cursor+=3;
  }finally{polling=false;}}
  let stopping;const stop=()=>stopping||(stopping=(async()=>{stopped=true;clearTimeout(initial);clearInterval(timer);await app.locals.localTranslator?.close();await new Promise(resolve=>listener.close(resolve));await serviceStore.queue.catch(()=>{});await serviceStore.close();})());

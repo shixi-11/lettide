@@ -4,12 +4,12 @@
 
 ## 下载安装
 
-当前预览版本 **0.3.2**。[下载页](https://github.com/shixi-11/lettide/releases/tag/v0.3.2) · [更新记录](CHANGELOG.md) · [English](README.en.md)
+当前预览版本 **0.3.3**。[下载页](https://github.com/shixi-11/lettide/releases/tag/v0.3.3) · [更新记录](CHANGELOG.md) · [English](README.en.md)
 
 | 系统 | 中文版「叠信」 | English “Lettide” |
 | --- | --- | --- |
-| Windows 10 / 11，64 位 | [下载安装程序](https://github.com/shixi-11/lettide/releases/download/v0.3.2/Lettide-0.3.2-win-x64-zh-CN.exe) | [Download installer](https://github.com/shixi-11/lettide/releases/download/v0.3.2/Lettide-0.3.2-win-x64-en.exe) |
-| macOS 12+，Apple 芯片与 Intel 通用 | [下载 DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.2/Lettide-0.3.2-mac-universal-zh-CN.dmg) | [Download DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.2/Lettide-0.3.2-mac-universal-en.dmg) |
+| Windows 10 / 11，64 位 | [下载安装程序](https://github.com/shixi-11/lettide/releases/download/v0.3.3/Lettide-0.3.3-win-x64-zh-CN.exe) | [Download installer](https://github.com/shixi-11/lettide/releases/download/v0.3.3/Lettide-0.3.3-win-x64-en.exe) |
+| macOS 12+，Apple 芯片与 Intel 通用 | [下载 DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.3/Lettide-0.3.3-mac-universal-zh-CN.dmg) | [Download DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.3/Lettide-0.3.3-mac-universal-en.dmg) |
 
 Windows 双击安装；macOS 打开 DMG 后把应用拖入「应用程序」。内置运行环境，无需安装 Node.js。中文版与英文版功能相同，可在设置中切换中文、English 或跟随系统。
 
@@ -35,7 +35,7 @@ Windows 双击安装；macOS 打开 DMG 后把应用拖入「应用程序」。�
 - 日间、夜间、系统外观，中英文及系统语言。
 - MCP 读取、搜索、同步、草稿与显式确认发送工具。
 
-每个文件夹缓存最近 60 封邮件，搜索针对这些缓存。收件箱与已发送约每分钟检查，其他文件夹每分钟分批检查，目录约每十分钟刷新。选择文件夹或点击同步可立即更新当前分类。
+每个文件夹缓存最近 60 封邮件，搜索针对这些缓存。QQ 等 IMAP 邮箱先加载列表，打开邮件后下载并缓存正文和附件；离线阅读和正文搜索使用已下载的内容。收件箱与已发送约每分钟检查，其他文件夹每分钟分批检查，目录约每十分钟刷新。选择文件夹或点击同步可立即更新当前分类。
 
 批量操作、全历史服务端搜索、HTML 排版编辑、通知及开机启动仍在后续计划中。发送结果不确定时禁止自动重发，应先检查已发送邮件。
 

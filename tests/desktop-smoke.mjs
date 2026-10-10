@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import path from 'node:path';
 import os from 'node:os';
 import {fileURLToPath,pathToFileURL} from 'node:url';
-import {mkdtemp,rm,mkdir,writeFile} from 'node:fs/promises';
+import {mkdtemp,rm,mkdir,writeFile,readFile} from 'node:fs/promises';
 import {createServer} from 'node:http';
 import {Store} from '../backend/src/store.js';
 import {createApp} from '../backend/src/server.js';
@@ -21,7 +21,8 @@ service.locals.requestQuit=()=>{quitRequested=true;};
 try{
  const page=await app.firstWindow();await page.getByRole('heading',{name:'收件箱',exact:true}).waitFor();
  assert.deepEqual(await page.evaluate(()=>({require:typeof window.require,node:typeof window.process,desktop:window.lettide?.desktop})),{require:'undefined',node:'undefined',desktop:true});checks.push('Native window keeps renderer isolated');
- assert.equal(await app.evaluate(({app})=>app.getVersion()),'0.3.2');checks.push('App version is 0.3.2');
+ const version=JSON.parse(await readFile(path.join(root,'desktop/package.json'),'utf8')).version;
+ assert.equal(await app.evaluate(({app})=>app.getVersion()),version);checks.push('App version is '+version);
  await app.evaluate(({shell})=>{shell.openExternal=async url=>{globalThis.__external=url;};});
  await page.evaluate(()=>window.lettide.openExternal('https://mail.qq.com/'));
  assert.equal(await app.evaluate(()=>globalThis.__external),'https://mail.qq.com/');

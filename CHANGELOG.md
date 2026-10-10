@@ -1,5 +1,21 @@
 # 更新记录 / Changelog
 
+## 0.3.3
+
+### English
+
+- Load QQ and other IMAP message lists before downloading bodies and attachments. Open a message to fetch its content once, then reuse the cache. Reuse folder metadata and combine duplicate sync requests.
+- Show a syncing state while the first inbox download is in progress, and surface automatic sync errors. The selected account now shows its own last sync time.
+- Show Archive only for accounts that support it. QQ accounts without an archive folder no longer show it in navigation, the toolbar, the move selector or the context menu; Gmail keeps Archive.
+- Display the Inbox heading in the selected interface language instead of the server's INBOX name.
+
+### 中文
+
+- QQ 等 IMAP 邮箱优先加载邮件列表，正文和附件在打开邮件时下载并缓存；复用文件夹信息，合并重复同步请求。
+- 首次下载收件箱时显示同步状态，自动同步失败时显示提示；切换邮箱后显示该账号自己的同步时间。
+- 按账号实际支持情况显示归档。QQ 没有归档文件夹时，侧栏、工具栏、移动列表及右键菜单隐藏归档；Gmail 仍保留。
+- 收件箱标题随界面语言显示，不再使用服务器的 INBOX 名称。
+
 ## 0.3.2
 
 ### English
