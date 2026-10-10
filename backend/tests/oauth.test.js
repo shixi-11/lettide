@@ -12,7 +12,7 @@ test('configured Google and Microsoft browser flows bind PKCE and client ID, sav
  const dir=await mkdtemp(path.join(os.tmpdir(),'lettide-oauth-fixture-'));
  const store=await new Store({file:path.join(dir,'state'),codec:{protect:async x=>x,unprotect:async x=>x}}).open();
  const probe=createServer();await new Promise(r=>probe.listen(0,'127.0.0.1',r));const port=probe.address().port;await new Promise(r=>probe.close(r));
- const app=await createApp({store,port}),server=createServer(app);await new Promise(r=>server.listen(port,'127.0.0.1',r));
+ const app=await createApp({store,port,oauthFetch:(...args)=>globalThis.fetch(...args)}),server=createServer(app);await new Promise(r=>server.listen(port,'127.0.0.1',r));
  const base=`http://127.0.0.1:${port}`,nativeFetch=globalThis.fetch;
  const headers={authorization:`Bearer ${store.state.token}`,'Content-Type':'application/json'};
  let expected,tokenCalls=0;

@@ -1,5 +1,19 @@
 # 更新记录 / Changelog
 
+## 0.3.6
+
+### English
+
+- Translate short paragraphs in batches while preserving line breaks and links. Show actual offline translation progress and distinguish queued requests.
+- Recover a stalled local translation worker after a timeout, and allow retrying without restarting the app. Long emails still take time to process on the device.
+- Show which browser authorization step failed without exposing credentials, so Gmail connection problems can be diagnosed.
+
+### 中文
+
+- 短段落批量翻译，保留换行和链接；显示离线翻译实际进度，并区分排队中的请求。
+- 本地翻译超时后恢复模型进程，可直接重试，无需重启应用；长邮件仍需要本机计算时间。
+- 浏览器授权失败时区分失败步骤，方便排查 Gmail 连接问题，同时避免显示凭据。
+
 ## 0.3.5
 
 ### English

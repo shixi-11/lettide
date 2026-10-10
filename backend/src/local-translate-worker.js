@@ -133,6 +133,7 @@ const codes = { '简体中文': 'zho_Hans', English: 'eng_Latn', 日本語: 'jpn
 const URL_RE = /((?:https?:\/\/|www\.)[^\s<>()]+)/giu;
 const MAX_SOURCE_TOKENS = 800;
 const MAX_OUTPUT_TOKENS = 512;
+const TRANSLATION_BATCH_SIZE = 4;
 async function tokenCount(text) {
   const encoded = await pipe.tokenizer(text, { add_special_tokens: true });
   const ids = encoded.input_ids;
@@ -179,26 +180,67 @@ async function translatePiece(text, source, target, depth = 0) {
   for (const part of smaller) output += part.translate ? await translatePiece(part.text, source, target, depth + 1) : part.text;
   return leading + output + trailing;
 }
-async function translate(text, targetLanguage, sourceLanguage) {
+async function translatePieces(texts, source, target) {
+  if (texts.length === 1) return [await translatePiece(texts[0], source, target)];
+  const bounds = texts.map(text => ({ leading: text.match(/^\s*/u)?.[0] || '', trailing: text.match(/\s*$/u)?.[0] || '' }));
+  const bodies = texts.map((text, i) => text.slice(bounds[i].leading.length, text.length - bounds[i].trailing.length));
+  const results = await pipe(bodies, { src_lang: source, tgt_lang: target, max_new_tokens: MAX_OUTPUT_TOKENS });
+  if (!Array.isArray(results) || results.length !== texts.length) throw new Error('Local model returned an incomplete translation batch');
+  const output = [];
+  for (let i = 0; i < results.length; i++) {
+    const translated = results[i]?.translation_text;
+    if (typeof translated !== 'string' || !translated.trim() || await tokenCount(translated) >= MAX_OUTPUT_TOKENS - 1) {
+      output.push(await translatePiece(texts[i], source, target));
+    } else {
+      output.push(bounds[i].leading + translated.trim() + bounds[i].trailing);
+    }
+  }
+  return output;
+}
+async function translatePreservingStructure(text, source, target, onProgress) {
+  const parts = await tokenSegments(text);
+  const total = parts.filter(part => part.translate && part.text.trim()).length;
+  let completed = 0;
+  onProgress({ phase: 'running', completed, total });
+  const output = [];
+  for (let i = 0; i < parts.length;) {
+    if (!parts[i].translate || !parts[i].text.trim()) { output.push(parts[i++].text); continue; }
+    const batch = [parts[i++].text];
+    const separators = [];
+    while (batch.length < TRANSLATION_BATCH_SIZE) {
+      let j = i;
+      let separator = '';
+      while (j < parts.length && !parts[j].translate && /^\s*$/u.test(parts[j].text)) separator += parts[j++].text;
+      if (!separator || j >= parts.length || !parts[j].translate) break;
+      separators.push(separator);
+      batch.push(parts[j].text);
+      i = j + 1;
+    }
+    const translated = await translatePieces(batch, source, target);
+    completed += batch.length;
+    onProgress({ phase: 'running', completed, total });
+    for (let j = 0; j < translated.length; j++) {
+      output.push(translated[j]);
+      if (j < separators.length) output.push(separators[j]);
+    }
+  }
+  return output.join('');
+}
+async function translate(text, targetLanguage, sourceLanguage, onProgress = () => {}) {
   if (!pipe) throw new Error('Offline translation model is not ready');
   const target = codes[targetLanguage];
   if (!target) throw new Error('Unsupported target language');
   const source = codes[sourceLanguage] || guessSource(text);
   if (source === target) return text;
-  const parts = await tokenSegments(text);
-  const output = [];
-  for (const part of parts) {
-    if (!part.translate || !part.text.trim()) { output.push(part.text); continue; }
-    output.push(await translatePiece(part.text, source, target));
-  }
-  return output.join('');
+  onProgress({ phase: 'preparing', completed: 0, total: 0 });
+  return translatePreservingStructure(text, source, target, onProgress);
 }
 
 parentPort.on('message', async (m) => {
   if (m.type === 'download') { void doDownload(); return; }
   if (m.type === 'translate') {
     translationQueue = translationQueue.then(async () => {
-      try { parentPort.postMessage({ type: 'result', id: m.id, text: await translate(m.text, m.targetLanguage, m.sourceLanguage) }); }
+      try { parentPort.postMessage({ type: 'result', id: m.id, text: await translate(m.text, m.targetLanguage, m.sourceLanguage, value => parentPort.postMessage({ type: 'translation-progress', id: m.id, value })) }); }
       catch (error) { parentPort.postMessage({ type: 'result', id: m.id, error: error?.message || 'Local translation failed' }); }
     });
   }
