@@ -16,7 +16,54 @@ const validRecipients=d=>!!String(d.to||'').trim()&&[d.to,d.cc,d.bcc].filter(Boo
 export async function createApp({store=new Store(),staticRoot=defaultStaticRoot,port=47831,mailSender=sendMail,oauthFetch=fetch,googleTranslator=translateGoogle,localTranslator=null,folderLister=listRemoteFolders,mailSyncer=syncAccount,messageLoader=loadMessageBody,messageUpdater=updateRemote,accountTester=async a=>{await testImap(a);await testSmtp(a);}}={}) {
  await store.open(); const app=express(), pendingOAuth=new Map();app.locals.store=store;app.locals.mailSyncer=mailSyncer;app.locals.folderLister=folderLister;
  const syncTasks=new Map();
- app.locals.syncFolder=(accountId,folder)=>{const key=JSON.stringify([accountId,folder]);let work=syncTasks.get(key);if(!work){work=store.mutate(state=>{const account=state.accounts.find(a=>a.id===accountId);if(!account)return;const custom=!['inbox','sent','drafts','archive','junk','trash'].includes(folder);return mailSyncer(state,account,custom?{id:folder,accountId}:folder,'',60,{metadataOnly:true})});syncTasks.set(key,work);work.finally(()=>syncTasks.delete(key)).catch(()=>{});}return work;};
+ const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+ async function refreshFolders(accountId){
+  const account=store.state.accounts.find(a=>a.id===accountId);if(!account)return false;
+  const beforeAccount=structuredClone(account),snapshot={settings:structuredClone(store.state.settings),accounts:[structuredClone(account)],messages:[]};
+  const found=await folderLister(snapshot,snapshot.accounts[0]);
+  return store.mutate(state=>{const current=state.accounts.find(a=>a.id===accountId);if(!current)return false;const afterAccount=snapshot.accounts[0];for(const key of Object.keys({...beforeAccount,...afterAccount}))if(!same(beforeAccount[key],afterAccount[key])&&same(current[key],beforeAccount[key])){if(Object.hasOwn(afterAccount,key))current[key]=structuredClone(afterAccount[key]);else delete current[key];}current.folders=found.map(f=>({...f,accountId}));current.foldersSyncedAt=new Date().toISOString();return true;});
+ }
+ async function syncFolder(accountId,folder){
+  const account=store.state.accounts.find(a=>a.id===accountId);if(!account)return;
+  const beforeAccount=structuredClone(account),baseline=store.state.messages.filter(m=>m.accountId===accountId).map(m=>structuredClone(m));
+  const snapshot={settings:structuredClone(store.state.settings),accounts:[structuredClone(account)],messages:baseline.map(m=>structuredClone(m))};
+  const custom=!['inbox','sent','drafts','archive','junk','trash'].includes(folder),target=custom?{id:folder,accountId}:folder;
+  await mailSyncer(snapshot,snapshot.accounts[0],target,'',60,{metadataOnly:true});
+  const synced=snapshot.messages.filter(m=>m.accountId===accountId),baseById=new Map(baseline.map(m=>[m.id,m])),syncedById=new Map(synced.map(m=>[m.id,m]));
+  await store.mutate(state=>{
+   const liveAccount=state.accounts.find(a=>a.id===accountId);if(!liveAccount)return;
+   const currentById=new Map(state.messages.filter(m=>m.accountId===accountId).map(m=>[m.id,m]));
+   const allIds=new Set([...baseById.keys(),...syncedById.keys()]);
+   for(const id of allIds){
+    const base=baseById.get(id),remote=syncedById.get(id),current=currentById.get(id);
+    if(!base){
+     if(remote&&!current)state.messages.push(structuredClone(remote));
+     else if(remote&&current){const merged=structuredClone(current),membership=new Set([...(current.folderIds||current.folders||[current.folder||'inbox']),...(remote.folderIds||remote.folders||[remote.folder||'inbox'])]);merged.folderIds=[...membership];merged.folders=merged.folderIds;const index=state.messages.findIndex(m=>m.id===id);if(index>=0)state.messages[index]=merged;}
+     continue;
+    }
+    if(!current)continue;
+    if(!remote){
+     const changed=Object.keys({...base,...current}).some(key=>!same(base[key],current[key]));
+     if(!changed)state.messages=state.messages.filter(m=>m.id!==id);
+     continue;
+    }
+    if(!same(base.folder,current.folder))continue;
+    const merged=structuredClone(remote);
+    for(const key of new Set([...Object.keys(base),...Object.keys(current)]))if(!['folderIds','folders'].includes(key)&&!same(base[key],current[key])){if(Object.hasOwn(current,key))merged[key]=structuredClone(current[key]);else delete merged[key];}
+    const baseMembership=new Set(base.folderIds||base.folders||[base.folder||'inbox']),currentMembership=new Set(current.folderIds||current.folders||[current.folder||'inbox']),syncedMembership=new Set(remote.folderIds||remote.folders||[remote.folder||'inbox']),membership=new Set(baseMembership);
+    for(const id of baseMembership)if(!currentMembership.has(id))membership.delete(id);
+    for(const id of currentMembership)if(!baseMembership.has(id))membership.add(id);
+    for(const id of baseMembership)if(!syncedMembership.has(id))membership.delete(id);
+    for(const id of syncedMembership)if(!baseMembership.has(id))membership.add(id);
+    merged.folderIds=[...membership];merged.folders=merged.folderIds;
+    const index=state.messages.findIndex(m=>m.id===id);if(index>=0)state.messages[index]=merged;
+   }
+   const baseFields=beforeAccount,afterAccount=snapshot.accounts[0];
+   for(const key of Object.keys({...baseFields,...afterAccount}))if(!same(baseFields[key],afterAccount[key])&&same(liveAccount[key],baseFields[key])){if(Object.hasOwn(afterAccount,key))liveAccount[key]=structuredClone(afterAccount[key]);else delete liveAccount[key];}
+  });
+ }
+ app.locals.refreshFolders=refreshFolders;
+ app.locals.syncFolder=(accountId,folder)=>{const key=JSON.stringify([accountId,folder]);let work=syncTasks.get(key);if(!work){work=syncFolder(accountId,folder);syncTasks.set(key,work);work.finally(()=>syncTasks.delete(key)).catch(()=>{});}return work;};
  app.disable('x-powered-by'); app.use(express.json({limit:'20mb'}));app.use((req,res,next)=>{res.setHeader('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'; form-action 'self'");res.setHeader('X-Content-Type-Options','nosniff');res.setHeader('Referrer-Policy','no-referrer');res.setHeader('X-Frame-Options','DENY');res.setHeader('Cache-Control','no-store');next();});
 const loopHost=h=>['127.0.0.1','localhost','[::1]'].includes((h.match(/^\[::1\]|^[^:]+/)||[])[0])&&h.endsWith(`:${port}`);
 app.use((req,res,next)=>!loopHost(req.headers.host||'')&&!(req.method==='GET'&&req.path==='/api/oauth/callback')?res.sendStatus(403):next());
@@ -36,7 +83,7 @@ app.post('/api/accounts',async(req,res)=>{const b=req.body||{};if(!['qq','godadd
 app.delete('/api/accounts/:id',async(req,res)=>{await store.mutate(s=>{const removed=new Set(s.messages.filter(m=>m.accountId===req.params.id).map(m=>m.id));s.accounts=s.accounts.filter(a=>a.id!==req.params.id);s.messages=s.messages.filter(m=>m.accountId!==req.params.id);s.drafts=s.drafts.filter(d=>d.accountId!==req.params.id);s.jobs=s.jobs.filter(j=>!removed.has(j.messageId));});res.sendStatus(204);});
 app.get('/api/folders',async(req,res)=>{
  const errors=[];
- if(req.query.refresh==='true')for(const a of [...store.state.accounts])try{const rows=await store.mutate(async state=>{const account=state.accounts.find(x=>x.id===a.id);const found=await folderLister(state,account);account.folders=found.map(f=>({...f,accountId:a.id}));account.foldersSyncedAt=new Date().toISOString();return account.folders;});}catch{errors.push(a.id);}
+ if(req.query.refresh==='true')for(const a of [...store.state.accounts])try{await refreshFolders(a.id);}catch{errors.push(a.id);}
  const rows=store.state.accounts.flatMap(a=>(a.folders||[]).map(f=>({...f,accountId:a.id})));
  if(errors.length)res.setHeader('X-Lettide-Folder-Errors',String(errors.length));
  res.json(rows);
@@ -60,13 +107,14 @@ app.get('/api/oauth/start',(req,res)=>{try{const result=prepareOAuth(req.query.p
 app.get('/api/oauth/callback',async(req,res)=>{const p=pendingOAuth.get(req.query.state);pendingOAuth.delete(req.query.state);if(!p||Date.now()-p.created>600000)return res.status(400).send('OAuth state expired');const s=store.state.settings,client=p.client,secret=p.secret,url=p.provider==='gmail'?'https://oauth2.googleapis.com/token':'https://login.microsoftonline.com/common/oauth2/v2.0/token';let stage='token';try{if(req.query.error)throw new Error('cancelled');const body=new URLSearchParams({client_id:client,redirect_uri:'http://127.0.0.1:'+port+'/api/oauth/callback',grant_type:'authorization_code',code:req.query.code,code_verifier:p.verifier});if(secret)body.set('client_secret',secret);const r=await oauthFetch(url,{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded'},body,signal:AbortSignal.timeout(15000)});if(!r.ok)throw 0;const t=await r.json();stage='profile';const profile=await oauthFetch(p.provider==='gmail'?'https://gmail.googleapis.com/gmail/v1/users/me/profile':'https://graph.microsoft.com/v1.0/me?$select=displayName,mail,userPrincipalName',{headers:{Authorization:`Bearer ${t.access_token}`},signal:AbortSignal.timeout(15000)});if(!profile.ok)throw 0;const me=await profile.json(),email=me.emailAddress||me.mail||me.userPrincipalName;if(!email)throw 0;stage='persistent_access';const existing=store.state.accounts.find(x=>x.provider===p.provider&&x.email.toLowerCase()===email.toLowerCase());if(!t.refresh_token&&!existing?.refreshToken)throw 0;stage='save';const a={id:existing?.id||newId(),provider:p.provider,name:me.displayName||email,email,accessToken:t.access_token,refreshToken:t.refresh_token||existing.refreshToken,expiresAt:Date.now()+t.expires_in*1000,createdAt:existing?.createdAt||new Date().toISOString(),verifiedAt:new Date().toISOString()};await store.mutate(x=>{const old=x.accounts.find(y=>y.provider===p.provider&&y.email.toLowerCase()===email.toLowerCase());if(old)Object.assign(old,a,{id:old.id});else x.accounts.push(a);});res.type('html').send('<meta charset="utf-8"><title>Lettide</title><p>邮箱已连接，可以关闭此页面，返回叠信。</p><p>Account connected. You can close this page and return to Lettide.</p>');}catch{const messages={token:'无法完成令牌交换，请重新连接。 / Token exchange failed. Please reconnect.',profile:'无法读取邮箱资料，请检查 Gmail API 是否启用及组织访问政策。 / Cannot verify the mailbox. Check Gmail API and organization access policies.',persistent_access:'未获得持续访问权限，请重新授权。 / Persistent access was not granted. Please reconnect.',save:'授权已完成，但本机保存失败，请重试。 / Authorization completed but local storage failed. Please retry.'};res.status(400).type('text').send(messages[stage]);}});
 app.get('/api/messages',(req,res)=>{const {accountId,folder='inbox',query='',unread,limit='100'}=req.query;if(!['inbox','sent','drafts','archive','junk','trash'].includes(folder)&&!store.state.accounts.some(a=>(!accountId||a.id===accountId)&&(a.folders||[]).some(f=>f.id===folder)))return res.status(400).json({error:'Invalid folder'});let rows=store.state.messages.filter(m=>(!accountId||m.accountId===accountId)&&(m.folderIds||[m.folder||'inbox']).includes(folder));if(query)rows=rows.filter(m=>`${m.subject} ${m.text} ${m.from?.address}`.toLowerCase().includes(String(query).toLowerCase()));if(unread!==undefined)rows=rows.filter(m=>m.unread===(unread==='true'));rows.sort((a,b)=>Date.parse(b.date)-Date.parse(a.date));res.json({items:rows.slice(0,Math.min(200,Math.max(1,+limit||100))).map(publicMessage),total:rows.length});});
 const bodyLoads=new Map();
- async function ensureBody(id){const current=store.state.messages.find(x=>x.id===id);if(!current||current.bodyLoaded!==false)return current;let work=bodyLoads.get(id);if(!work){work=store.mutate(async state=>{const m=state.messages.find(x=>x.id===id);if(m)await messageLoader(state,m);return m;});bodyLoads.set(id,work);work.finally(()=>bodyLoads.delete(id)).catch(()=>{});}return work;}
+ async function ensureBody(id){const current=store.state.messages.find(x=>x.id===id);if(!current||current.bodyLoaded!==false)return current;let work=bodyLoads.get(id);if(!work){const baseMessage=structuredClone(current),account=store.state.accounts.find(a=>a.id===current.accountId);if(!account)return null;const baseAccount=structuredClone(account),snapshot={settings:structuredClone(store.state.settings),accounts:[structuredClone(account)],messages:[baseMessage]};work=(async()=>{await messageLoader(snapshot,snapshot.messages[0]);const loaded=snapshot.messages[0];return store.mutate(state=>{if(!state.accounts.some(a=>a.id===baseMessage.accountId))return null;const message=state.messages.find(x=>x.id===id);if(!message||message.bodyLoaded!==false)return message||null;for(const key of ['text','attachments','bodyLoaded'])if(Object.hasOwn(loaded,key))message[key]=structuredClone(loaded[key]);const liveAccount=state.accounts.find(a=>a.id===baseMessage.accountId),loadedAccount=snapshot.accounts[0];for(const key of Object.keys({...baseAccount,...loadedAccount}))if(!same(baseAccount[key],loadedAccount[key])&&same(liveAccount[key],baseAccount[key])){if(Object.hasOwn(loadedAccount,key))liveAccount[key]=structuredClone(loadedAccount[key]);else delete liveAccount[key];}return message;});})();bodyLoads.set(id,work);work.finally(()=>bodyLoads.delete(id)).catch(()=>{});}return work;}
+ app.locals.waitForBackgroundTasks=async()=>{while(syncTasks.size||bodyLoads.size)await Promise.allSettled([...syncTasks.values(),...bodyLoads.values()]);};
  app.get('/api/messages/:id',async(req,res)=>{try{const m=await ensureBody(req.params.id);m?res.json(publicMessage(m)):res.sendStatus(404)}catch{res.status(502).json({error:'Could not load email content. Please retry.'})}});
 app.post('/api/sync',async(req,res)=>{
  const accounts=store.state.accounts.filter(a=>!req.body?.accountId||a.id===req.body.accountId);
  if(req.body?.accountId&&!accounts.length)return res.sendStatus(404);
  const selected=req.body?.folder,errors=[],synced=new Set();
- for(const a of accounts){let ok=true;try{if(!a.foldersSyncedAt||Date.now()-Date.parse(a.foldersSyncedAt)>600000)await store.mutate(async state=>{const account=state.accounts.find(x=>x.id===a.id);const folders=await folderLister(state,account);account.folders=folders.map(f=>({...f,accountId:a.id}));account.foldersSyncedAt=new Date().toISOString();});}catch{ok=false;errors.push({accountId:a.id,error:'Folder sync failed'});}
+ for(const a of accounts){let ok=true;const current=store.state.accounts.find(x=>x.id===a.id);if(!current)continue;try{if(!current.foldersSyncedAt||Date.now()-Date.parse(current.foldersSyncedAt)>600000)await refreshFolders(a.id);}catch{ok=false;errors.push({accountId:a.id,error:'Folder sync failed'});}
  const folders=selected?[selected]:[...new Set(['inbox','sent',...(store.state.accounts.find(x=>x.id===a.id)?.folders||[]).map(f=>f.id)])];
  for(const folder of folders){const custom=!['inbox','sent','drafts','archive','junk','trash'].includes(folder),known=store.state.accounts.find(x=>x.id===a.id)?.folders?.find(f=>f.id===folder);if(custom&&!known){ok=false;errors.push({accountId:a.id,folder,error:'Invalid folder'});continue;}
  try{await app.locals.syncFolder(a.id,folder);}catch{ok=false;errors.push({accountId:a.id,folder,error:'Sync failed; check connection settings'});}}
@@ -119,16 +167,17 @@ export async function startService(options={}){
  async function poll(){if(polling||stopped)return;polling=true;try{
   for(const a of [...serviceStore.state.accounts]){
    if(stopped)break;
-   if(!a.foldersSyncedAt||Date.now()-Date.parse(a.foldersSyncedAt)>600000)try{await serviceStore.mutate(async state=>{const account=state.accounts.find(x=>x.id===a.id);if(!account)return;account.folders=(await app.locals.folderLister(state,account)).map(f=>({...f,accountId:a.id}));account.foldersSyncedAt=new Date().toISOString();});}catch{}
+   if(!a.foldersSyncedAt||Date.now()-Date.parse(a.foldersSyncedAt)>600000)try{await app.locals.refreshFolders(a.id);}catch{}
    const current=serviceStore.state.accounts.find(x=>x.id===a.id);if(!current)continue;
    const extras=(current.folders||[]).filter(f=>!['inbox','sent'].includes(f.id));
    const batch=['inbox','sent',...Array.from({length:Math.min(3,extras.length)},(_,i)=>extras[(cursor+i)%extras.length].id)];
    for(const folder of new Set(batch)){if(stopped)break;try{await app.locals.syncFolder(a.id,folder);}catch{}}
   }cursor+=3;
  }finally{polling=false;}}
- let stopping;const stop=()=>stopping||(stopping=(async()=>{stopped=true;clearTimeout(initial);clearInterval(timer);await app.locals.localTranslator?.close();await new Promise(resolve=>listener.close(resolve));await serviceStore.queue.catch(()=>{});await serviceStore.close();})());
+ let pollWork=Promise.resolve();const runPoll=()=>{if(!polling&&!stopped)pollWork=poll().catch(()=>{});};
+ let stopping;const stop=()=>stopping||(stopping=(async()=>{stopped=true;clearTimeout(initial);clearInterval(timer);await new Promise(resolve=>listener.close(resolve));await pollWork;await app.locals.waitForBackgroundTasks();await app.locals.localTranslator?.close();await serviceStore.queue.catch(()=>{});await serviceStore.close();})());
  app.locals.requestQuit=()=>stop().then(()=>{if(options.exitOnQuit)process.exit(0)});
- const timer=setInterval(poll,60000);timer.unref();const initial=setTimeout(poll,1500);initial.unref();
+ const timer=setInterval(runPoll,60000);timer.unref();const initial=setTimeout(runPoll,1500);initial.unref();
  return {app,listener,stop};
 }
 if(process.argv[1]&&fileURLToPath(import.meta.url)===path.resolve(process.argv[1])){const service=await startService({exitOnQuit:true});const stop=()=>{service.stop().finally(()=>process.exit(0));};process.on('SIGINT',stop);process.on('SIGTERM',stop);}

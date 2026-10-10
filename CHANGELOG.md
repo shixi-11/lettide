@@ -1,5 +1,17 @@
 # 更新记录 / Changelog
 
+## 0.3.7
+
+### English
+
+- Load Gmail message lists with concurrent metadata requests. Fetch bodies and attachments when opening a message, and reuse cached content on subsequent reads.
+- Keep mailbox sync and content downloads from blocking draft saves, other folders, or translation updates. Preserve changes made while a sync is running.
+
+### 中文
+
+- Gmail 邮件列表并行获取摘要信息，打开邮件时再下载正文和附件；已下载的内容直接使用本机缓存。
+- 邮箱同步和正文下载不再阻塞草稿保存、其他文件夹或翻译状态更新，并保留同步期间的操作结果。
+
 ## 0.3.6
 
 ### English
