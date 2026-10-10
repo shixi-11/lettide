@@ -207,4 +207,3 @@ parentPort.on('message', async (m) => {
 if (await filesPresent()) {
   try { await loadModel(); } catch (error) { sendStatus('error', { error: error?.message || 'Model load failed' }); }
 } else sendStatus('not_downloaded');
-

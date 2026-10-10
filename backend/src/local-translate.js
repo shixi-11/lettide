@@ -73,4 +73,3 @@ export class LocalTranslator {
 }
 
 export const languageCodes = Object.freeze({ '简体中文': 'zho_Hans', English: 'eng_Latn', 日本語: 'jpn_Jpan', 한국어: 'kor_Hang', '繁體中文': 'zho_Hant', Français: 'fra_Latn' });
-
