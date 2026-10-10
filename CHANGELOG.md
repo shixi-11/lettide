@@ -1,5 +1,25 @@
 # 更新记录 / Changelog
 
+## 0.3.1
+
+### English
+
+- Translate offline on this device after a one-time model download (about 920 MB). Clicking Translated or Compare starts translation directly; completed results are cached.
+- Right-click a message to mark it read or unread, star, archive, move or delete. Delete and move show progress and report errors; provider operations no longer make unnecessary folder queries after a successful move.
+- Show folders in All inboxes, grouped by account. Manage accounts in a separate window, reorder them or remove a local connection.
+- Add a dedicated Outlook entry, soften the light theme, and keep the app running in the system tray when its window is closed. Right-click the tray icon to quit.
+- Gmail and Outlook browser sign-in still require the publisher's OAuth application configuration. The installers do not bundle publisher client IDs yet.
+- Correct packaging of offline translation dependencies for the universal Mac installer.
+
+### 中文
+
+- 首次下载约 920 MB 模型后可在本机离线翻译。点击「译文」或「对照」直接开始，已完成译文本机缓存。
+- 邮件支持右键标记已读／未读、星标、归档、移动和删除。删除与移动显示进度和错误，远端移动成功后不再依赖额外文件夹查询。
+- 「全部邮箱」显示按账号分组的文件夹；独立管理窗口可调整邮箱顺序、移除本机连接。
+- 增加独立 Outlook 入口，柔化日间配色；关闭窗口收起到系统托盘，通过图标右键菜单退出。
+- Gmail 与 Outlook 浏览器登录仍需发行方配置 OAuth 应用，当前安装包尚未附带发行方 Client ID。
+- 修复 Mac 通用安装包中离线翻译依赖的合并方式。
+
 ## 0.3.0
 
 ### English
