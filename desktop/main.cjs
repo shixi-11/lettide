@@ -6,7 +6,7 @@ const base=!app.isPackaged&&/^http:\/\/127\.0\.0\.1:\d+$/.test(process.env.LETTI
 let buildLocale='system';try{buildLocale=require('./build-locale.json').language||'system';}catch{}
 let language='zh-CN';
 const root=app.isPackaged?process.resourcesPath:path.resolve(__dirname,'..');
-let window,accountManagerWindow,tray,isQuitting=false,backendStopped=false,quitPending=false;
+let window,accountManagerWindow,tray,isQuitting=false,backendStopped=false,quitPending=false,mainReady=false,pendingAddAccount=false;
 app.setName('Lettide');
 app.setPath('userData',path.join(app.getPath('appData'),'Lettide'));
 if(!app.isPackaged&&process.env.LETTIDE_TEST_USER_DATA)app.setPath('userData',process.env.LETTIDE_TEST_USER_DATA);
@@ -36,7 +36,8 @@ async function startService(){
   const out=fs.openSync(path.join(logs,'service.log'),'a');const err=fs.openSync(path.join(logs,'service-error.log'),'a');
   const child=spawn(process.execPath,[path.join(root,'backend','src','server.js')],{cwd:root,env:{...process.env,ELECTRON_RUN_AS_NODE:'1'},windowsHide:true,detached:true,stdio:['ignore',out,err]});
   child.unref();fs.closeSync(out);fs.closeSync(err);
-  for(let i=0;i<80;i++){await new Promise(r=>setTimeout(r,250));try{const r=await fetch(base+'/',{signal:AbortSignal.timeout(1500)});if(r.ok)return;}catch{}}
+  const deadline=Date.now()+120000;
+  while(Date.now()<deadline){await new Promise(r=>setTimeout(r,500));try{const r=await fetch(base+'/',{signal:AbortSignal.timeout(1500)});if(r.ok)return;}catch{}}
   throw new Error('邮箱服务未能启动，请查看本机 Lettide 日志。');
 }
 function openWindow(){
@@ -47,8 +48,9 @@ function openWindow(){
   window.webContents.on('will-navigate',navigation);window.webContents.on('will-redirect',navigation);
   window.webContents.session.setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
   window.once('ready-to-show',()=>window.show());
+  window.webContents.on('did-finish-load',()=>{mainReady=true;if(pendingAddAccount){pendingAddAccount=false;window.webContents.send('lettide:add-account-request');}});
   window.on('close',event=>{if(!isQuitting){event.preventDefault();window.hide();}});
-  window.on('closed',()=>{window=null;});
+  window.on('closed',()=>{window=null;mainReady=false;});
   void window.loadURL(base+'/');
 }
 function openAccountManagerWindow(){
@@ -71,6 +73,7 @@ if(!app.requestSingleInstanceLock()){app.quit();}else{
     ipcMain.on('lettide:locale',(event)=>{event.returnValue={initialLanguage:buildLocale,systemLanguage:app.getLocale()};});
     ipcMain.handle('lettide:language',(event,value)=>{const senderAllowed=allowed(event)||event.sender===accountManagerWindow?.webContents&&new URL(event.senderFrame.url).origin===base;if(!senderAllowed||!['en','zh-CN'].includes(value))throw new Error('Invalid language');language=value;window?.setTitle(value==='en'?'Lettide':'叠信');if(accountManagerWindow)accountManagerWindow.setTitle(value==='en'?'Manage accounts · Lettide':'邮箱管理 · 叠信');updateTrayMenu();return {ok:true};});
     ipcMain.handle('lettide:open-account-manager',event=>{if(!allowed(event))throw new Error('请求来源无效');openAccountManagerWindow();return {ok:true};});
+    ipcMain.handle('lettide:open-add-account',event=>{if(event.sender!==accountManagerWindow?.webContents||new URL(event.senderFrame.url).origin!==base)throw new Error('Invalid source');pendingAddAccount=true;showMainWindow();if(mainReady){pendingAddAccount=false;window.webContents.send('lettide:add-account-request');}return {ok:true};});
     ipcMain.handle('lettide:open-external',async(event,url)=>{if(!allowed(event))throw new Error('Invalid source');const u=new URL(url);if(u.protocol!=='https:')throw new Error('Only secure browser links are supported');await shell.openExternal(u.href);return {ok:true};});
     language=(buildLocale==='system'?app.getLocale():buildLocale).startsWith('zh')?'zh-CN':'en';
     if(process.platform==='darwin')Menu.setApplicationMenu(Menu.buildFromTemplate([{label:language==='en'?'Lettide':'叠信',submenu:[{role:'about'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{type:'separator'},{role:'quit'}]},{role:'editMenu'},{role:'windowMenu'}]));

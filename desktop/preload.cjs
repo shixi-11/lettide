@@ -7,4 +7,6 @@ contextBridge.exposeInMainWorld('lettide',{
  openExternal:url=>ipcRenderer.invoke('lettide:open-external',url),
  setLanguage:language=>ipcRenderer.invoke('lettide:language',language),
  openAccountManager:()=>ipcRenderer.invoke('lettide:open-account-manager'),
+ openAddAccount:()=>ipcRenderer.invoke('lettide:open-add-account'),
+ onAddAccountRequest:callback=>{const listener=()=>callback();ipcRenderer.on('lettide:add-account-request',listener);return()=>ipcRenderer.removeListener('lettide:add-account-request',listener);},
 });

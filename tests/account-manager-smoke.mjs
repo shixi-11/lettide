@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import os from 'node:os';
+import {mkdtemp,rm,mkdir} from 'node:fs/promises';
+import {pathToFileURL,fileURLToPath} from 'node:url';
+import {createServer} from 'node:http';
+import {Store} from '../backend/src/store.js';
+import {createApp} from '../backend/src/server.js';
+
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const modulePath=process.env.PLAYWRIGHT_MODULE||path.join(os.homedir(),'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs');
+const {chromium}=await import(pathToFileURL(modulePath).href);
+const output=path.join(root,'output/playwright');await mkdir(output,{recursive:true});
+const dir=await mkdtemp(path.join(os.tmpdir(),'lettide-account-ui-'));
+const store=await new Store({file:path.join(dir,'state'),codec:{protect:async x=>x,unprotect:async x=>x}}).open();
+const now=new Date().toISOString();
+await store.mutate(state=>{state.accounts=[{id:'fixture-work',name:'Work mailbox',email:'work@example.test',provider:'godaddy',verifiedAt:now,lastSync:now},{id:'fixture-personal',name:'Personal mailbox',email:'personal@example.test',provider:'gmail',verifiedAt:now,lastSync:now}];});
+const port=47933,service=await createApp({store,port,folderLister:async()=>[],mailSyncer:async()=>[],mailSender:async()=>{throw new Error('Sending is disabled in this fixture')}}),server=createServer(service);
+await new Promise(resolve=>server.listen(port,'127.0.0.1',resolve));
+const browser=await chromium.launch({headless:true,channel:'msedge'}),checks=[];
+try {
+ const page=await browser.newPage({viewport:{width:1180,height:760},locale:'zh-CN'});
+ await page.addInitScript(()=>{window.__addAccountCalls=0;window.lettide={openAddAccount:()=>{window.__addAccountCalls++;return Promise.resolve({ok:true})},setLanguage:()=>{}}});
+ await page.goto(`http://127.0.0.1:${port}/?window=accounts`);
+ await page.getByRole('heading',{name:'邮箱管理'}).waitFor();
+ await page.getByRole('button',{name:'添加邮箱'}).click();assert.equal(await page.evaluate(()=>window.__addAccountCalls),1);checks.push('Add mailbox action is visible and invokes the desktop bridge');
+ await page.getByText('拖动邮箱，或使用右侧箭头调整顺序。').waitFor();
+ await page.getByRole('button',{name:'下移'}).first().click();
+ await page.waitForFunction(()=>document.querySelector('.am-info strong')?.textContent==='Personal mailbox');
+ checks.push('Ordering help describes drag and arrow controls; arrow reorders mailbox rows');
+ await page.getByRole('group',{name:'界面语言'}).getByRole('button',{name:'EN'}).click();
+ await page.getByRole('heading',{name:'Manage accounts'}).waitFor();
+ await page.getByRole('button',{name:'Add mailbox'}).waitFor();
+ await page.getByText('Drag a mailbox or use the arrows to change its position.').waitFor();
+ await page.getByRole('group',{name:'Interface language'}).getByRole('button',{name:'中文'}).waitFor();
+ await page.screenshot({path:path.join(output,'account-manager-en.jpg'),type:'jpeg',quality:92,animations:'disabled'});
+ checks.push('Interface language switch updates labels, ordering help, and document title copy');
+ await page.getByRole('group',{name:'Interface language'}).getByRole('button',{name:'中文'}).click();
+ await page.getByRole('heading',{name:'邮箱管理'}).waitFor();
+ await page.screenshot({path:path.join(output,'account-manager-zh.jpg'),type:'jpeg',quality:92,animations:'disabled'});
+ console.log(JSON.stringify({passed:checks.length,checks,scope:'Fictional account rows only; no real email content or provider access'}));
+} finally {await browser.close();await service.locals.localTranslator?.close();await new Promise(resolve=>server.close(resolve));await store.close();await rm(dir,{recursive:true,force:true});}

@@ -6,11 +6,14 @@ import {readFile} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {Store} from './store.js';
+import {waitForBackend,requestWithReconnect} from './mcp-connection.js';
 
-const base='http://127.0.0.1:47831', store=new Store({readOnly:true}), pending=new Map();let headers;
-async function ensureBackend(){try{await fetch(base+'/',{signal:AbortSignal.timeout(2000)});}catch{const entry=fileURLToPath(new URL('./server.js',import.meta.url)),child=spawn(process.execPath,[entry],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1'},detached:true,windowsHide:true,stdio:'ignore'});child.unref();}for(let i=0;i<40;i++){await new Promise(r=>setTimeout(r,250));try{const r=await fetch(base+'/',{signal:AbortSignal.timeout(2000)});if(r.ok)return;}catch{}}throw new Error('Shared email service could not start');}
-await ensureBackend();await store.open();headers={'authorization':`Bearer ${store.state.token}`,'content-type':'application/json'};const health=await fetch(base+'/api/status',{headers,signal:AbortSignal.timeout(5000)});if(!health.ok)throw new Error('Shared Lettide service authentication failed');
-async function api(route,method='GET',body,extra={}){const r=await fetch(base+route,{method,headers:{...headers,...extra},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(route==='/api/sync'?180000:30000)});const txt=await r.text();if(!r.ok&&r.status!==502)throw new Error(`Backend request failed (${r.status})`);return txt?JSON.parse(txt):null;}
+const base='http://127.0.0.1:47831',pending=new Map();let headers;
+async function refreshAuth(){const current=new Store({readOnly:true});await current.open();const token=current.state.token;current.state=null;await current.close();headers={'authorization':`Bearer ${token}`,'content-type':'application/json'};}
+async function startBackend(){const entry=fileURLToPath(new URL('./server.js',import.meta.url)),child=spawn(process.execPath,[entry],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1'},detached:true,windowsHide:true,stdio:'ignore'});child.once('error',()=>console.error('[Lettide MCP] Could not launch the local service process.'));child.unref();}
+async function reconnect(){await waitForBackend(base,{startBackend});await refreshAuth();}
+await waitForBackend(base,{startBackend});await refreshAuth();const health=await fetch(base+'/api/status',{headers,signal:AbortSignal.timeout(5000)});if(!health.ok)throw new Error(`Shared Lettide service authentication failed (${health.status})`);
+async function api(route,method='GET',body,extra={}){const makeOptions=()=>({method,headers:{...headers,...extra},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(route==='/api/sync'?180000:30000)});let r=await requestWithReconnect(base+route,makeOptions,{reconnect});if(r.status===401){await refreshAuth();r=await requestWithReconnect(base+route,makeOptions,{reconnect});}const txt=await r.text();if(!r.ok)throw new Error(`Backend request failed (${r.status})`);return txt?JSON.parse(txt):null;}
 const server=new McpServer({name:'email-workspace',version:JSON.parse(await readFile(new URL('../package.json',import.meta.url),'utf8')).version});
 const result=x=>({content:[{type:'text',text:JSON.stringify(x)}]});
 server.tool('mail_accounts_list','List connected email accounts. Never returns credentials or tokens.',{},async()=>result(await api('/api/accounts')));

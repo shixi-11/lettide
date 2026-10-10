@@ -36,6 +36,7 @@ try {
  await page.getByRole('button',{name:'日间',exact:true}).click();
  await page.getByRole('button',{name:/Ava.*Project review/}).click();
  await page.getByRole('button',{name:'对照',exact:true}).click();
+ await page.getByText('译为',{exact:true}).waitFor();assert.equal(await page.getByRole('combobox',{name:'邮件译成'}).count(),1);checks.push('Email translation target has a visible label distinct from interface language');
  await page.getByText('感谢大家今天会议上的精彩讨论。总结一下，',{exact:false}).waitFor();
  await page.locator('.account-trigger').click();
  assert.equal(await page.locator('.account-item').count(),6);

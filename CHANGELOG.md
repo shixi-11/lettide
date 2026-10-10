@@ -1,5 +1,21 @@
 # 更新记录 / Changelog
 
+## 0.3.4
+
+### English
+
+- Speed up Windows mail-cache reads and writes with AES-256-GCM and a DPAPI-protected key. Existing encrypted data migrates when next saved.
+- Add a visible Add mailbox action and clearer ordering controls to the account manager.
+- Separate interface language from email translation language, with labeled controls for each.
+- Improve AI assistant startup and recovery when the shared mail service is unavailable or restarting.
+
+### 中文
+
+- 加快 Windows 邮件缓存读写，使用 AES-256-GCM 加密及 DPAPI 保护的密钥；已有加密数据在下次保存时迁移。
+- 邮箱管理窗口增加「添加邮箱」，明确显示排序操作。
+- 分开设置界面语言与邮件翻译语言，入口标明用途。
+- 改善 AI 助手在邮箱后台启动、暂不可用或重启时的连接处理。
+
 ## 0.3.3
 
 ### English

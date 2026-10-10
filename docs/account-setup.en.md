@@ -44,6 +44,8 @@ You can ask an assistant to check unread mail, search cached messages, read mail
 
 Windows uses CurrentUser DPAPI; macOS stores the encryption key in Keychain. Reauthorize your accounts after changing system users or reinstalling the operating system. Do not copy cookies or put tokens in source code.
 
+From 0.3.4, Windows encrypts the cache with AES-256-GCM and protects its random key with DPAPI. An existing cache is upgraded when next saved. Local backups must retain both `state.dpapi` and `state.dpapi.key.dpapi`; the key remains tied to the same Windows user. Older versions cannot read the upgraded format.
+
 ## Reading translations
 
 Download the offline model once in Settings. Clicking Translated or Compare then processes the selected body locally; no email content is uploaded. Model downloads contain only public model files. See [model details](translation-model.md).

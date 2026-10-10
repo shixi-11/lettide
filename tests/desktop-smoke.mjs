@@ -34,6 +34,7 @@ try{
  await page.evaluate(()=>window.lettide.openAccountManager());
  const manager=app.windows().find(p=>p!==page)||await app.waitForEvent('window');await manager.getByRole('heading',{name:'Manage accounts',exact:true}).waitFor();
  assert.equal(await manager.evaluate(()=>typeof window.require),'undefined');
+ await manager.getByRole('button',{name:'Add mailbox',exact:true}).click();await page.getByRole('dialog').waitFor();await page.getByRole('heading',{name:'Add account',exact:true}).waitFor();await page.getByRole('button',{name:'Close',exact:true}).click();checks.push('Standalone account manager Add mailbox action opens the main-window connection form');
  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('window=accounts')).close());
  assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('window=accounts')).isVisible()),false);
  checks.push('Account manager opens as a separate isolated native window and closes to background');
