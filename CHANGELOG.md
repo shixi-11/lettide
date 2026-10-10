@@ -1,5 +1,15 @@
 # 更新记录 / Changelog
 
+## 0.3.5
+
+### English
+
+- Retry service startup when the previous backend is still releasing its data lock, so AI assistants can reconnect after a restart. Includes the cache, account-management and language-control improvements from 0.3.4.
+
+### 中文
+
+- 旧后台尚未释放数据锁时自动重试启动，让 AI 助手在后台重启后恢复连接；包含 0.3.4 的缓存提速、邮箱管理及语言入口优化。
+
 ## 0.3.4
 
 ### English

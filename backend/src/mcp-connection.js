@@ -1,12 +1,15 @@
 const pause=ms=>new Promise(resolve=>setTimeout(resolve,ms));
 
-export async function waitForBackend(base,{fetchImpl=fetch,timeoutMs=120000,intervalMs=500,requestTimeoutMs=1500,startBackend=async()=>{}}={}){
+export async function waitForBackend(base,{fetchImpl=fetch,timeoutMs=120000,intervalMs=500,requestTimeoutMs=1500,relaunchIntervalMs=2000,startBackend=async()=>{}}={}){
   try{const r=await fetchImpl(base+'/',{signal:AbortSignal.timeout(requestTimeoutMs)});if(r.ok)return;}catch{}
-  await startBackend();
+  let child=await startBackend(),lastLaunch=Date.now();
   const deadline=Date.now()+timeoutMs;
   while(Date.now()<deadline){
     await pause(Math.min(intervalMs,Math.max(0,deadline-Date.now())));
     try{const r=await fetchImpl(base+'/',{signal:AbortSignal.timeout(requestTimeoutMs)});if(r.ok)return;}catch{}
+    // During shutdown the listener can close before the writer lock is freed.
+    // A child that lost that race must be relaunched after the old writer exits.
+    if(child&&(child.exitCode!=null||child.signalCode)&&Date.now()-lastLaunch>=relaunchIntervalMs){child=await startBackend();lastLaunch=Date.now();}
   }
   throw new Error(`Lettide service did not become ready within ${Math.ceil(timeoutMs/1000)} seconds`);
 }

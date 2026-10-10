@@ -29,3 +29,9 @@ test('MCP creates fresh request options after reconnect and avoids an extra fina
 test('MCP startup reports a bounded timeout when service never becomes ready',async()=>{
   await assert.rejects(waitForBackend('http://fixture.test',{timeoutMs:5,intervalMs:1,requestTimeoutMs:10,fetchImpl:async()=>{throw new Error('offline');}}),/did not become ready/);
 });
+
+test('MCP relaunches a child that exits while the old service releases its writer lock',async()=>{
+  let launches=0;
+  await waitForBackend('http://fixture.test',{timeoutMs:1000,intervalMs:1,relaunchIntervalMs:0,startBackend:async()=>({exitCode:++launches===1?1:null}),fetchImpl:async()=>launches<2?Promise.reject(new Error('not ready')):new Response('',{status:200})});
+  assert.equal(launches,2);
+});
