@@ -98,6 +98,43 @@ test('IMAP move without a UID mapping invalidates the cached UID before later fl
  await assert.rejects(updateRemote(state,m,{unread:false},deps),/UID unavailable/);assert.equal(flagCalls,0);
 });
 
+test('IMAP move resolves destination before locking and commits after remote move without a second folder listing',async()=>{
+ const account={id:'qq-atomic',provider:'qq',email:'a@example.test',password:'mock'},state=stateFor(account);let listCalls=0,moveCalls=0,lockHeld=false;
+ const boxes=[{path:'INBOX',name:'INBOX',specialUse:'\\Inbox'},{path:'Trash',name:'Trash',specialUse:'\\Trash'}];
+ const deps={imapClientFactory:()=>({
+  mailbox:{exists:1,uidValidity:7},connect:async()=>{},logout:async()=>{},
+  list:async()=>{listCalls++;if(listCalls>1)throw new Error('unexpected second folder list');return boxes;},
+  getMailboxLock:async()=>{lockHeld=true;return {release(){lockHeld=false;}};},
+  messageMove:async()=>{assert.equal(lockHeld,true);moveCalls++;return {uidMap:new Map([[1,9]]),uidValidity:8};}
+ })};
+ const m={id:'qq-atomic:imap:INBOX:1',accountId:account.id,folder:'inbox',folderIds:['inbox'],providerRef:{type:'imap',folder:'INBOX',uid:1,uidValidity:'7'}};state.messages.push(m);
+ await updateRemote(state,m,{folder:'trash'},deps);
+ assert.equal(listCalls,1);assert.equal(moveCalls,1);assert.equal(m.providerRef.folder,'Trash');assert.equal(m.providerRef.uid,9);assert.deepEqual(m.folderIds,['trash']);
+});
+
+test('IMAP move uses the account folder cache without opening a folder-list connection',async()=>{
+ const account={id:'qq-cached',provider:'qq',email:'a@example.test',password:'mock',folders:[{id:'trash',role:'trash',providerId:'Deleted Items'}]},state=stateFor(account);let listCalls=0,moveCalls=0;
+ const deps={imapClientFactory:()=>({mailbox:{exists:1,uidValidity:7},connect:async()=>{},logout:async()=>{},list:async()=>{listCalls++;throw new Error('cache should avoid remote list');},getMailboxLock:async()=>({release(){}}),messageMove:async(_uid,folder)=>{assert.equal(folder,'Deleted Items');moveCalls++;return {uidMap:new Map([[1,2]]),uidValidity:8};}})};
+ const m={id:'qq-cached:imap:INBOX:1',accountId:account.id,folder:'inbox',providerRef:{type:'imap',folder:'INBOX',uid:1,uidValidity:'7'}};state.messages.push(m);
+ await updateRemote(state,m,{folder:'trash'},deps);assert.equal(listCalls,0);assert.equal(moveCalls,1);assert.equal(m.providerRef.uid,2);
+});
+
+test('Gmail move commits local labels after one preflight label lookup and no post-move request',async()=>{
+ const account={id:'gmail-atomic',provider:'gmail',email:'a@example.test',accessToken:'mock',expiresAt:Date.now()+3600000},state=stateFor(account);let labelCalls=0,modifyCalls=0;
+ const deps={fetchImpl:async(url,init={})=>{if(url.endsWith('/labels')){labelCalls++;if(labelCalls>1)throw new Error('unexpected post-move label lookup');return json({labels:[{id:'INBOX',name:'INBOX',type:'system'},{id:'TRASH',name:'TRASH',type:'system'},{id:'SPAM',name:'SPAM',type:'system'},{id:'custom-1',name:'项目',type:'user'}]});}if(url.includes('/modify')){modifyCalls++;return json({});}throw new Error(`Unexpected mock request ${url}`);}};
+ const customId='gmail:Y3VzdG9tLTE',m={id:'gmail-atomic:gmail:m1',accountId:account.id,folder:'inbox',folderIds:['inbox','gmail:Y3VzdG9tLTE'],providerRef:{type:'gmail',id:'m1',labelIds:['INBOX','custom-1']}};state.messages.push(m);
+ await updateRemote(state,m,{folder:'trash'},deps);
+ assert.equal(labelCalls,1);assert.equal(modifyCalls,1);assert.deepEqual(new Set(m.providerRef.labelIds),new Set(['custom-1','TRASH']));assert.deepEqual(new Set(m.folderIds),new Set(['trash','gmail:Y3VzdG9tLTE']));
+});
+
+test('Graph move is the final provider request and commits the returned message ID locally',async()=>{
+ const account={id:'graph-atomic',provider:'microsoft',email:'a@example.test',accessToken:'mock',expiresAt:Date.now()+3600000,folders:[{id:'trash',role:'trash',providerId:'trash-id'}]},state=stateFor(account);const calls=[];
+ const deps={fetchImpl:async(url,init={})=>{calls.push({url,method:init.method||'GET'});if(url.endsWith('/messages/m1'))return json({});if(url.endsWith('/messages/m1/move'))return json({id:'m2'});throw new Error('unexpected request after move');}};
+ const m={id:'graph-atomic:graph:m1',accountId:account.id,folder:'inbox',folderIds:['inbox'],providerRef:{type:'graph',id:'m1',folder:'inbox'}};state.messages.push(m);
+ await updateRemote(state,m,{folder:'trash'},deps);
+ assert.deepEqual(calls.map(x=>x.method),['POST']);assert.equal(calls[0].url.endsWith('/messages/m1/move'),true);assert.equal(m.id,'graph-atomic:graph:m2');assert.equal(m.providerRef.id,'m2');assert.deepEqual(m.folderIds,['trash']);
+});
+
 test('Gmail MIME and SMTP sends decode base64 attachments while retaining reply headers',async()=>{
  const attachment={filename:'hello.txt',content:Buffer.from('hello attachment').toString('base64'),contentType:'text/plain'};
  const raw=Buffer.from(await composeGmailRaw({from:'a@example.test',to:'b@example.test',subject:'file',text:'body',attachments:[{filename:attachment.filename,content:Buffer.from(attachment.content,'base64'),contentType:attachment.contentType}]}),'base64url').toString('utf8');

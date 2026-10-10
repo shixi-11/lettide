@@ -1,1 +1,11 @@
+allowBuilds:
+  onnxruntime-node: true
+  protobufjs: false
+  sharp: false
+supportedArchitectures:
+  os:
+    - current
+  cpu:
+    - x64
+    - arm64
 nodeLinker: hoisted

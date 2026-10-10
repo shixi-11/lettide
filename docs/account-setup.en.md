@@ -30,7 +30,7 @@ In testing mode, add your email addresses as test users. Refresh tokens for apps
 1. Register an application in Microsoft Entra and choose the supported account types for your accounts.
 2. Add `http://127.0.0.1:47831/api/oauth/callback` under the mobile and desktop application platform and allow public desktop clients. This setup usually does not require a Client Secret. An existing Web platform configuration can retain its secret.
 3. Add delegated permissions: `User.Read`, `Mail.ReadWrite`, `Mail.Send` and `offline_access`.
-4. Enter the Client ID in Lettide's account authorization settings, and enter a Client Secret only if required. When adding GoDaddy, choose Microsoft 365 / Outlook and complete Microsoft's official authorization flow.
+4. Enter the Client ID in Lettide's account authorization settings, and enter a Client Secret only if required. Choose Outlook, or choose Microsoft 365 / Outlook when adding GoDaddy and complete Microsoft's official authorization flow.
 
 Organization accounts may need administrator consent. GoDaddy tenant policies may restrict custom applications, so your administrator may need to approve access. Lettide uses the [Microsoft Graph mail API](https://learn.microsoft.com/en-us/graph/api/resources/mail-api-overview); you do not need to keep reopening Outlook on the web.
 
@@ -46,4 +46,4 @@ Windows uses CurrentUser DPAPI; macOS stores the encryption key in Keychain. Rea
 
 ## Reading translations
 
-Click Translate to send only that message's body to Google's anonymous web translation service and display the result inline. No assistant, API key or local model is required. This is not the supported Cloud Translation API, and it may be limited or changed. Failures offer a retry; there is no automatic paid fallback. The subject, account fields and attachments are not sent as translation parameters. Original text and translations are encrypted locally.
+Download the offline model once in Settings. Clicking Translated or Compare then processes the selected body locally; no email content is uploaded. Model downloads contain only public model files. See [model details](translation-model.md).

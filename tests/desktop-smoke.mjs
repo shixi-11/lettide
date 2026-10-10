@@ -16,17 +16,34 @@ await new Promise(r=>server.listen(port,'127.0.0.1',r));
 const env={...process.env,LETTIDE_TEST_BASE_URL:`http://127.0.0.1:${port}`,LETTIDE_TEST_USER_DATA:path.join(dir,'profile')};delete env.ELECTRON_RUN_AS_NODE;
 const app=await _electron.launch({executablePath:path.join(root,'desktop/node_modules/electron/dist',process.platform==='win32'?'electron.exe':'Electron.app/Contents/MacOS/Electron'),args:[path.join(root,'desktop')],env,timeout:40000});
 const checks=[];
+let quitRequested=false,exited=false;
+service.locals.requestQuit=()=>{quitRequested=true;};
 try{
  const page=await app.firstWindow();await page.getByRole('heading',{name:'收件箱',exact:true}).waitFor();
  assert.deepEqual(await page.evaluate(()=>({require:typeof window.require,node:typeof window.process,desktop:window.lettide?.desktop})),{require:'undefined',node:'undefined',desktop:true});checks.push('Native window keeps renderer isolated');
- assert.equal(await app.evaluate(({app})=>app.getVersion()),'0.2.2');checks.push('App version is 0.2.2');
+ assert.equal(await app.evaluate(({app})=>app.getVersion()),'0.3.0');checks.push('App version is 0.3.0');
  await app.evaluate(({shell})=>{shell.openExternal=async url=>{globalThis.__external=url;};});
  await page.evaluate(()=>window.lettide.openExternal('https://mail.qq.com/'));
  assert.equal(await app.evaluate(()=>globalThis.__external),'https://mail.qq.com/');
  await assert.rejects(page.evaluate(()=>window.lettide.openExternal('javascript:alert(1)')));checks.push('Browser IPC accepts HTTPS links and rejects executable URLs');
+ await app.evaluate(({Tray})=>{const original=Tray.prototype.setContextMenu;Tray.prototype.setContextMenu=function(menu){globalThis.__trayMenu=menu;return original.call(this,menu)}});
  await page.getByRole('button',{name:'设置',exact:true}).click();await page.getByRole('combobox',{name:'界面语言',exact:true}).selectOption('en');
  await page.waitForFunction(()=>document.title==='Lettide');assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].getTitle()),'Lettide');checks.push('Language change updates the native title');
  await page.getByRole('button',{name:'Close',exact:true}).click();
+ await page.evaluate(()=>window.lettide.openAccountManager());
+ const manager=app.windows().find(p=>p!==page)||await app.waitForEvent('window');await manager.getByRole('heading',{name:'Manage accounts',exact:true}).waitFor();
+ assert.equal(await manager.evaluate(()=>typeof window.require),'undefined');
+ await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('window=accounts')).close());
+ assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>w.webContents.getURL().includes('window=accounts')).isVisible()),false);
+ checks.push('Account manager opens as a separate isolated native window and closes to background');
+ await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>!w.webContents.getURL().includes('window=accounts')).close());
+ assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>!w.webContents.getURL().includes('window=accounts')).isVisible()),false);
+ const labels=await app.evaluate(()=>globalThis.__trayMenu.items.map(i=>i.label).filter(Boolean));assert.deepEqual(labels,['Open Lettide','Manage accounts','Quit Lettide']);
+ await app.evaluate(()=>globalThis.__trayMenu.items[0].click());assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>!w.webContents.getURL().includes('window=accounts')).isVisible()),true);checks.push('Window close hides to tray; localized tray Open restores the window');
  const output=path.join(root,'output/desktop-checks');await mkdir(output,{recursive:true});await page.screenshot({path:path.join(output,'Native-English.jpg'),type:'jpeg',quality:90,animations:'disabled'});await writeFile(path.join(output,'checks.json'),JSON.stringify({checks,scope:'Development Electron with isolated fictional service; no real mailbox accessed'},null,2));
+ const closed=app.waitForEvent('close');
+ await app.evaluate(()=>{setImmediate(()=>globalThis.__trayMenu.items.find(i=>i.label==='Quit Lettide').click());});
+ await closed;exited=true;assert.equal(quitRequested,true);checks.push('Tray Quit exits Electron and requests authenticated backend shutdown');
+ await writeFile(path.join(output,'checks.json'),JSON.stringify({checks,scope:'Development Electron with isolated fictional service; no real mailbox accessed'},null,2));
  console.log(JSON.stringify({passed:checks.length,checks}));
-}finally{await app.close();await new Promise(r=>server.close(r));await store.close();await rm(dir,{recursive:true,force:true});}
+}finally{if(!exited)await app.close();await service.locals.localTranslator?.close();await new Promise(r=>server.close(r));await store.close();await rm(dir,{recursive:true,force:true});}

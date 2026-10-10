@@ -3,3 +3,10 @@ Copyright 2026 Shixi Lin.
 This project's original code is provided under PolyForm Noncommercial 1.0.0.
 Commercial use requires separate written authorization from the copyright holder.
 Third-party dependencies retain their own licenses.
+
+Optional offline translation model: NLLB-200 distilled 600M by Meta AI,
+converted to ONNX by Xenova. Model weights are distributed separately
+under Creative Commons Attribution-NonCommercial 4.0 International.
+Model: https://huggingface.co/Xenova/nllb-200-distilled-600M
+License: https://creativecommons.org/licenses/by-nc/4.0/
+See docs/translation-model.md for the pinned revision and download details.

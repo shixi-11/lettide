@@ -81,6 +81,8 @@ jobs:
           if [ "${{ runner.os }}" = "macOS" ]; then args="$args --mac"; fi
           if [ "${{ matrix.language }}" = "en" ]; then args="$args --en"; fi
           node scripts/Build-Desktop.mjs $args
+      - name: Verify packaged native translation dependencies
+        run: node scripts/Verify-PackagedRuntime.mjs
       - uses: actions/upload-artifact@v4
         with:
           name: installer-${{ runner.os }}-${{ matrix.language }}

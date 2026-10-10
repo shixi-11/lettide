@@ -1,13 +1,13 @@
 # Lettide
 
-A calmer home for Gmail, GoDaddy and QQ Mail, with inline translation and shared mail tools for Codex and Claude.
+A calmer home for Gmail, Outlook, GoDaddy and QQ Mail, with inline translation and shared mail tools for Codex and Claude.
 
-**Preview 0.2.2** · [Downloads](https://github.com/shixi-11/lettide/releases/tag/v0.2.2) · [Changelog](CHANGELOG.md) · [中文说明](README.md)
+**Preview 0.3.0** · [Downloads](https://github.com/shixi-11/lettide/releases/tag/v0.3.0) · [Changelog](CHANGELOG.md) · [中文说明](README.md)
 
 | Platform | English installer | Chinese installer |
 | --- | --- | --- |
-| Windows 10 / 11, x64 | [Lettide](https://github.com/shixi-11/lettide/releases/download/v0.2.2/Lettide-0.2.2-win-x64-en.exe) | [叠信](https://github.com/shixi-11/lettide/releases/download/v0.2.2/Lettide-0.2.2-win-x64-zh-CN.exe) |
-| macOS 12+, Apple Silicon and Intel | [Lettide DMG](https://github.com/shixi-11/lettide/releases/download/v0.2.2/Lettide-0.2.2-mac-universal-en.dmg) | [叠信 DMG](https://github.com/shixi-11/lettide/releases/download/v0.2.2/Lettide-0.2.2-mac-universal-zh-CN.dmg) |
+| Windows 10 / 11, x64 | [Lettide](https://github.com/shixi-11/lettide/releases/download/v0.3.0/Lettide-0.3.0-win-x64-en.exe) | [叠信](https://github.com/shixi-11/lettide/releases/download/v0.3.0/Lettide-0.3.0-win-x64-zh-CN.exe) |
+| macOS 12+, Apple Silicon and Intel | [Lettide DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.0/Lettide-0.3.0-mac-universal-en.dmg) | [叠信 DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.0/Lettide-0.3.0-mac-universal-zh-CN.dmg) |
 
 Run the Windows installer, or open the DMG and drag the app into Applications. Node.js is included. Choose English, Chinese or the system language in Settings. These preview installers are unsigned; the Mac app is not notarized. Downloads appear when the corresponding build finishes. Automated Mac builds do not constitute a physical Mac UI acceptance test.
 
@@ -17,7 +17,9 @@ Use the account switcher at the top left to choose or search your accounts. Fold
 
 Google and Microsoft require an OAuth app registration; a publisher OAuth client is not bundled yet. QQ requires an app password from its official settings. See the [account setup guide](docs/account-setup.en.md).
 
-Translate displays the result beside the original. Only the body you explicitly translate is sent to Google's anonymous web service; no account credentials, subject or attachments. This is not the supported Cloud Translation API and may be limited or unavailable. No paid fallback is used. Syncing never automatically translates mail.
+Download the offline model once in Settings (about 920 MB). Clicking Translated or Compare then translates on this device without an online service, API key or connected assistant. Model downloads connect to Hugging Face and contain no email text. Remote model access is disabled for inference, with no online or paid fallback. Generation takes time; cached translations appear immediately. See [model source and license](docs/translation-model.md).
+
+Folders appear in All inboxes grouped by account. Open Manage accounts to reorder accounts or remove local connections in a separate window. Closing a window keeps Lettide in the system tray; right-click the tray icon and choose Quit Lettide to stop the app and shared service. A later assistant connection can start the service again.
 
 Windows protects local data with CurrentUser DPAPI; macOS stores an AES-256-GCM key in Keychain. Local data and configuration do not belong in Git. Sending through MCP requires explicit confirmation.
 

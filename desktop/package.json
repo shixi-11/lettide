@@ -1,6 +1,6 @@
 {
   "name": "lettide",
-  "version": "0.2.2",
+  "version": "0.3.0",
   "description": "Lettide — a calm home for your mail",
   "author": "Shixi Lin",
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -62,6 +62,10 @@
       {
         "from": "../NOTICE",
         "to": "NOTICE"
+      },
+      {
+        "from": "../docs/translation-model.md",
+        "to": "docs/translation-model.md"
       },
       {
         "from": "../scripts/Configure-AI.ps1",

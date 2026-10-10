@@ -1,4 +1,4 @@
-const {app, BrowserWindow, shell, dialog, ipcMain, nativeTheme, Menu}=require('electron');
+const {app, BrowserWindow, shell, dialog, ipcMain, nativeTheme, Menu, Tray, nativeImage}=require('electron');
 const {spawn}=require('node:child_process');
 const path=require('node:path');
 const fs=require('node:fs');
@@ -6,12 +6,30 @@ const base=!app.isPackaged&&/^http:\/\/127\.0\.0\.1:\d+$/.test(process.env.LETTI
 let buildLocale='system';try{buildLocale=require('./build-locale.json').language||'system';}catch{}
 let language='zh-CN';
 const root=app.isPackaged?process.resourcesPath:path.resolve(__dirname,'..');
-let window;
+let window,accountManagerWindow,tray,isQuitting=false,backendStopped=false,quitPending=false;
 app.setName('Lettide');
 app.setPath('userData',path.join(app.getPath('appData'),'Lettide'));
 if(!app.isPackaged&&process.env.LETTIDE_TEST_USER_DATA)app.setPath('userData',process.env.LETTIDE_TEST_USER_DATA);
 app.setAppUserModelId('com.lettide.desktop');
 function external(url){try{const u=new URL(url);if(u.protocol==='https:'||u.protocol==='http:')void shell.openExternal(u.href);}catch{}}
+function updateTrayMenu(){
+  if(!tray)return;
+  const en=language==='en';
+  tray.setToolTip(en?'Lettide':'叠信');
+  tray.setContextMenu(Menu.buildFromTemplate([
+    {label:en?'Open Lettide':'打开叠信',click:()=>showMainWindow()},
+    {label:en?'Manage accounts':'管理邮箱',click:()=>openAccountManagerWindow()},
+    {type:'separator'},
+    {label:en?'Quit Lettide':'退出叠信',click:()=>app.quit()},
+  ]));
+}
+function createTray(){
+  const source=nativeImage.createFromPath(path.join(__dirname,'assets','icon.png'));
+  const icon=source.resize({width:process.platform==='darwin'?18:16,height:process.platform==='darwin'?18:16});
+  if(process.platform==='darwin')icon.setTemplateImage(true);
+  tray=new Tray(icon);tray.on('double-click',showMainWindow);tray.on('click',()=>{if(process.platform==='darwin')showMainWindow();});updateTrayMenu();
+}
+function showMainWindow(){if(!window)return;if(window.isMinimized())window.restore();window.show();window.focus();}
 async function startService(){
   try{const r=await fetch(base+'/',{signal:AbortSignal.timeout(1500)});if(r.ok)return;}catch{}
   const logs=process.platform==='win32'?path.join(process.env.LOCALAPPDATA,'Lettide','logs'):path.join(app.getPath('userData'),'logs');fs.mkdirSync(logs,{recursive:true});
@@ -22,22 +40,37 @@ async function startService(){
   throw new Error('邮箱服务未能启动，请查看本机 Lettide 日志。');
 }
 function openWindow(){
-  window=new BrowserWindow({width:1480,height:960,minWidth:800,minHeight:600,title:language==='en'?'Lettide':'叠信',icon:path.join(__dirname,'assets','icon.png'),backgroundColor:nativeTheme.shouldUseDarkColors?'#151820':'#f4f7fc',show:false,autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  window=new BrowserWindow({width:1480,height:960,minWidth:800,minHeight:600,title:language==='en'?'Lettide':'叠信',icon:path.join(__dirname,'assets','icon.png'),backgroundColor:nativeTheme.shouldUseDarkColors?'#151820':'#e0e6ed',show:false,autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
   if(process.platform!=='darwin')window.setMenu(null);
   window.webContents.setWindowOpenHandler(({url})=>{external(url);return {action:'deny'};});
   const navigation=(event,url)=>{const u=new URL(url);if(u.origin!==base){event.preventDefault();external(url);}};
   window.webContents.on('will-navigate',navigation);window.webContents.on('will-redirect',navigation);
   window.webContents.session.setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
   window.once('ready-to-show',()=>window.show());
+  window.on('close',event=>{if(!isQuitting){event.preventDefault();window.hide();}});
   window.on('closed',()=>{window=null;});
   void window.loadURL(base+'/');
 }
+function openAccountManagerWindow(){
+  if(accountManagerWindow&&!accountManagerWindow.isDestroyed()){if(accountManagerWindow.isMinimized())accountManagerWindow.restore();accountManagerWindow.show();accountManagerWindow.focus();return;}
+  accountManagerWindow=new BrowserWindow({width:960,height:760,minWidth:560,minHeight:480,title:language==='en'?'Manage accounts · Lettide':'邮箱管理 · 叠信',icon:path.join(__dirname,'assets','icon.png'),backgroundColor:nativeTheme.shouldUseDarkColors?'#151820':'#e0e6ed',show:false,autoHideMenuBar:true,webPreferences:{preload:path.join(__dirname,'preload.cjs'),contextIsolation:true,nodeIntegration:false,sandbox:true}});
+  if(process.platform!=='darwin')accountManagerWindow.setMenu(null);
+  accountManagerWindow.webContents.setWindowOpenHandler(({url})=>{external(url);return {action:'deny'};});
+  const navigation=(event,url)=>{const u=new URL(url);if(u.origin!==base){event.preventDefault();external(url);}else if(u.pathname!=='/'||u.search!=='?window=accounts'){event.preventDefault();void accountManagerWindow.loadURL(base+'/?window=accounts');}};
+  accountManagerWindow.webContents.on('will-navigate',navigation);accountManagerWindow.webContents.on('will-redirect',navigation);
+  accountManagerWindow.webContents.session.setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
+  accountManagerWindow.once('ready-to-show',()=>accountManagerWindow?.show());
+  accountManagerWindow.on('close',event=>{if(!isQuitting){event.preventDefault();accountManagerWindow.hide();}});
+  accountManagerWindow.on('closed',()=>{accountManagerWindow=null;});
+  void accountManagerWindow.loadURL(base+'/?window=accounts');
+}
 if(!app.requestSingleInstanceLock()){app.quit();}else{
-  app.on('second-instance',()=>{if(window){if(window.isMinimized())window.restore();window.show();window.focus();}});
+  app.on('second-instance',showMainWindow);
   app.whenReady().then(async()=>{
     const allowed=event=>event.sender===window?.webContents&&new URL(event.senderFrame.url).origin===base;
     ipcMain.on('lettide:locale',(event)=>{event.returnValue={initialLanguage:buildLocale,systemLanguage:app.getLocale()};});
-    ipcMain.handle('lettide:language',(event,value)=>{if(!allowed(event)||!['en','zh-CN'].includes(value))throw new Error('Invalid language');language=value;window.setTitle(value==='en'?'Lettide':'叠信');return {ok:true};});
+    ipcMain.handle('lettide:language',(event,value)=>{const senderAllowed=allowed(event)||event.sender===accountManagerWindow?.webContents&&new URL(event.senderFrame.url).origin===base;if(!senderAllowed||!['en','zh-CN'].includes(value))throw new Error('Invalid language');language=value;window?.setTitle(value==='en'?'Lettide':'叠信');if(accountManagerWindow)accountManagerWindow.setTitle(value==='en'?'Manage accounts · Lettide':'邮箱管理 · 叠信');updateTrayMenu();return {ok:true};});
+    ipcMain.handle('lettide:open-account-manager',event=>{if(!allowed(event))throw new Error('请求来源无效');openAccountManagerWindow();return {ok:true};});
     ipcMain.handle('lettide:open-external',async(event,url)=>{if(!allowed(event))throw new Error('Invalid source');const u=new URL(url);if(u.protocol!=='https:')throw new Error('Only secure browser links are supported');await shell.openExternal(u.href);return {ok:true};});
     language=(buildLocale==='system'?app.getLocale():buildLocale).startsWith('zh')?'zh-CN':'en';
     if(process.platform==='darwin')Menu.setApplicationMenu(Menu.buildFromTemplate([{label:language==='en'?'Lettide':'叠信',submenu:[{role:'about'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{type:'separator'},{role:'quit'}]},{role:'editMenu'},{role:'windowMenu'}]));
@@ -50,8 +83,13 @@ if(!app.requestSingleInstanceLock()){app.quit();}else{
         ps.on('exit',code=>{if(!failed)resolve({ok:code===0,message:code===0?'已配置找到的客户端，重启对应客户端后可用。':'配置未完成，请检查已安装的 AI 客户端。'});});
       });
     });
-    try{await startService();openWindow();}catch(e){dialog.showErrorBox('叠信启动失败',e.message);app.quit();}
+    try{await startService();createTray();openWindow();}catch(e){dialog.showErrorBox('叠信启动失败',e.message);app.quit();}
   });
-  app.on('activate',()=>{if(!window)openWindow();});
-  app.on('window-all-closed',()=>{if(process.platform!=='darwin')app.quit();});
+  app.on('before-quit',event=>{
+    if(backendStopped){isQuitting=true;tray?.destroy();return;}
+    event.preventDefault();if(quitPending)return;quitPending=true;
+    (async()=>{try{const cookies=await window?.webContents.session.cookies.get({url:base});if(cookies?.length)await fetch(base+'/api/service/quit',{method:'POST',headers:{Origin:base,Cookie:cookies.map(c=>c.name+'='+c.value).join('; '),'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(5000)});}catch{}finally{backendStopped=true;app.quit();}})();
+  });
+  app.on('activate',()=>{if(!window)openWindow();else showMainWindow();});
+  app.on('window-all-closed',()=>{});
 }

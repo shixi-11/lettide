@@ -20,11 +20,51 @@ test('UI cookie is HttpOnly and write requires same-origin Origin',async()=>{con
 
 test('empty installation has no sample mail or accounts and account API never returns secrets',async()=>{const f=await fixture();try{const auth={...f.headers,authorization:`Bearer ${f.store.state.token}`};const before=await (await fetch(f.url+'/api/accounts',{headers:auth})).json();assert.deepEqual(before,[]);assert.deepEqual((await (await fetch(f.url+'/api/messages',{headers:auth})).json()).items,[]);await f.store.mutate(s=>s.accounts.push({id:'a',provider:'qq',email:'a@example.test',password:'not-returned',createdAt:new Date().toISOString()}));const rows=await (await fetch(f.url+'/api/accounts',{headers:auth})).json();assert.equal(rows[0].password,undefined);}finally{await f.close();}});
 
+test('message folder changes return updated state and provider failures remain explicit',async()=>{
+ let fail=false,calls=0;
+ const f=await fixture({messageUpdater:async(_state,message,patch)=>{calls++;if(fail)throw new Error('mock provider failure');message.folder=patch.folder;message.folderIds=[patch.folder];}});
+ try{
+  const auth={...f.headers,authorization:`Bearer ${f.store.state.token}`,'content-type':'application/json'};
+  await f.store.mutate(s=>{s.accounts.push({id:'fake-account',provider:'qq'});s.messages.push({id:'fake-message',accountId:'fake-account',folder:'inbox',folderIds:['inbox'],subject:'fixture',text:'fictional body',date:'2026-01-01',from:{address:'sender@example.test'},to:[],attachments:[]});});
+  let response=await fetch(f.url+'/api/messages/fake-message',{method:'PATCH',headers:auth,body:JSON.stringify({folder:'trash'})});
+  assert.equal(response.status,200);assert.deepEqual((await response.json()).folderIds,['trash']);assert.equal(calls,1);
+  fail=true;response=await fetch(f.url+'/api/messages/fake-message',{method:'PATCH',headers:auth,body:JSON.stringify({folder:'archive'})});
+  assert.equal(response.status,502);assert.deepEqual(await response.json(),{error:'Provider update failed'});assert.equal(calls,2);
+  assert.deepEqual(f.store.state.messages[0].folderIds,['trash']);
+ }finally{await f.close();}
+});
+
 test('account filters keep cached mail isolated and drafts require a one-shot idempotency key',async()=>{let sends=0;const f=await fixture({mailSender:async()=>{sends++;return {messageId:'message-1'};}});try{const auth={...f.headers,authorization:`Bearer ${f.store.state.token}`};await f.store.mutate(s=>{s.accounts.push({id:'a',email:'a@example.test'},{id:'b',email:'b@example.test'});s.messages.push({id:'m-a',accountId:'a',folder:'inbox',subject:'alpha',text:'private-a',date:'2026-01-01',from:{address:'a@example.test'},to:[],attachments:[]},{id:'m-b',accountId:'b',folder:'inbox',subject:'beta',text:'private-b',date:'2026-01-01',from:{address:'b@example.test'},to:[],attachments:[]});s.drafts.push({id:'d',accountId:'a',to:'b@example.test',subject:'hello',text:'draft'});});let rows=await (await fetch(f.url+'/api/messages?accountId=a',{headers:auth})).json();assert.equal(rows.total,1);assert.equal(rows.items[0].text,'private-a');const sendHeaders={...auth,'Idempotency-Key':'stable-key'};let response=await fetch(f.url+'/api/drafts/d/send',{method:'POST',headers:sendHeaders});assert.equal(response.status,200);response=await fetch(f.url+'/api/drafts/d/send',{method:'POST',headers:sendHeaders});assert.equal(response.status,200);assert.equal(sends,1);}finally{await f.close();}});
 
 test('uncertain send is recorded and cannot be retried with the same key',async()=>{let sends=0;const f=await fixture({mailSender:async()=>{sends++;throw new Error('uncertain');}});try{const auth={...f.headers,authorization:`Bearer ${f.store.state.token}`};await f.store.mutate(s=>{s.accounts.push({id:'a'});s.drafts.push({id:'d',accountId:'a',to:'x@example.test',subject:'hello',text:'draft'});});const headers={...auth,'Idempotency-Key':'uncertain-key'};let r=await fetch(f.url+'/api/drafts/d/send',{method:'POST',headers});assert.equal(r.status,502);assert.equal((await r.json()).status,'outcome_unknown');r=await fetch(f.url+'/api/drafts/d/send',{method:'POST',headers});assert.equal(r.status,409);assert.equal((await r.json()).status,'outcome_unknown');assert.equal(sends,1);}finally{await f.close();}});
 
 test('assistant translation queue retains source text and completed translation for UI readback',async()=>{const f=await fixture();try{const auth={...f.headers,authorization:`Bearer ${f.store.state.token}`};let r=await fetch(f.url+'/api/translations',{method:'POST',headers:{...auth,'content-type':'application/json'},body:JSON.stringify({text:'原文内容',targetLanguage:'English',mode:'assistant'})});assert.equal(r.status,202);const {id}=await r.json();let jobs=await (await fetch(f.url+'/api/translations/jobs',{headers:auth})).json();assert.equal(jobs[0].text,'原文内容');assert.equal(jobs[0].status,'pending');r=await fetch(`${f.url}/api/translations/${id}/complete`,{method:'POST',headers:{...auth,'content-type':'application/json'},body:JSON.stringify({translation:'Translated text'})});assert.equal(r.status,200);jobs=await (await fetch(f.url+'/api/translations/jobs',{headers:auth})).json();assert.equal(jobs[0].translation,'Translated text');assert.equal(jobs[0].status,'completed');}finally{await f.close();}});
+
+test('offline translation requires explicit model download, deduplicates work and invalidates changed body cache',async()=>{
+ let ready=false,downloads=0,translations=0,online=0;
+ const f=await fixture({localTranslator:{status:async()=>({state:ready?'ready':'not_downloaded'}),download:async()=>{downloads++;return {state:'downloading'};},translate:async text=>{translations++;await new Promise(r=>setTimeout(r,25));return '译文 '+text;}},googleTranslator:async()=>{online++;throw new Error('Online fallback forbidden');}});
+ try{
+  const auth={...f.headers,authorization:`Bearer ${f.store.state.token}`,'content-type':'application/json'};
+  const translate=()=>fetch(f.url+'/api/translations',{method:'POST',headers:auth,body:JSON.stringify({messageId:'offline-fixture',targetLanguage:'简体中文'})});
+  await f.store.mutate(s=>s.messages.push({id:'offline-fixture',text:'Fictional meeting reminder'}));
+  assert.equal((await fetch(f.url+'/api/translations/local',{headers:auth})).status,200);assert.equal(downloads,0);
+  let result=await translate();assert.equal(result.status,409);assert.equal((await result.json()).code,'MODEL_NOT_READY');assert.equal(online,0);assert.equal(translations,0);
+  assert.equal((await fetch(f.url+'/api/translations/local/download',{method:'POST',headers:auth,body:'{}'})).status,202);assert.equal(downloads,1);
+  ready=true;const pair=await Promise.all([translate(),translate()]);assert.deepEqual(pair.map(r=>r.status),[200,200]);assert.equal(translations,1);
+  assert.equal((await translate()).status,200);assert.equal(translations,1);
+  await f.store.mutate(s=>s.messages[0].text='Changed fictional reminder');assert.equal((await translate()).status,200);assert.equal(translations,2);assert.equal(online,0);
+  assert.equal(f.store.state.jobs.length,2);assert.ok(f.store.state.jobs.every(j=>j.provider==='local'));
+ }finally{await f.close();}
+});
+
+test('removing an account clears its local mail, drafts and translations while keeping other accounts',async()=>{
+ const f=await fixture();try{
+  const auth={...f.headers,authorization:`Bearer ${f.store.state.token}`};
+  await f.store.mutate(s=>{s.accounts.push({id:'remove-fixture'},{id:'keep-fixture'});s.messages.push({id:'remove-mail',accountId:'remove-fixture'},{id:'keep-mail',accountId:'keep-fixture'});s.drafts.push({id:'remove-draft',accountId:'remove-fixture'},{id:'keep-draft',accountId:'keep-fixture'});s.jobs.push({messageId:'remove-mail',translation:'private fixture translation'},{messageId:'keep-mail',translation:'retained fixture'});});
+  assert.equal((await fetch(f.url+'/api/accounts/remove-fixture',{method:'DELETE',headers:auth})).status,204);
+  assert.deepEqual(f.store.state.accounts.map(a=>a.id),['keep-fixture']);assert.deepEqual(f.store.state.messages.map(m=>m.id),['keep-mail']);assert.deepEqual(f.store.state.drafts.map(d=>d.id),['keep-draft']);assert.deepEqual(f.store.state.jobs.map(j=>j.messageId),['keep-mail']);
+ }finally{await f.close();}
+});
 
 test('built web assets are served from only the configured web root with browser security headers',async()=>{const f=await fixture();try{const root=await fetch(f.url+'/',{headers:f.headers});assert.equal(root.status,200);assert.match(root.headers.get('content-security-policy'),/default-src 'self'/);assert.equal(root.headers.get('x-content-type-options'),'nosniff');assert.match(root.headers.get('cache-control'),/no-store/);const asset=await fetch(f.url+'/assets/app.js',{headers:f.headers});assert.equal(asset.status,200);assert.match(await asset.text(),/testAsset/);const privatePath=await fetch(f.url+'/state.dpapi',{headers:f.headers});assert.equal(privatePath.status,404);const forgedHost=await new Promise((resolve,reject)=>{const port=new URL(f.url).port,req=httpRequest({hostname:'127.0.0.1',port,path:'/assets/app.js',headers:{host:`evil.example:${port}`}},resolve);req.on('error',reject);req.end();});forgedHost.resume();assert.equal(forgedHost.statusCode,403);const auth={...f.headers,authorization:`Bearer ${f.store.state.token}`};const info=await (await fetch(f.url+'/api/integrations',{headers:auth})).json();assert.equal(info.service.baseUrl,f.url);assert.equal(JSON.stringify(info).includes(f.store.state.token),false);}finally{await f.close();}});
 

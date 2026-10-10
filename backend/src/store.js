@@ -5,7 +5,7 @@ import {spawn} from 'node:child_process';
 import {randomBytes, randomUUID} from 'node:crypto';
 import * as macosCrypto from './macos-crypto.js';
 
-const initial = () => ({version:1, token:randomBytes(32).toString('base64url'), accounts:[], messages:[], drafts:[], settings:{translationMode:'google',ollamaModel:'qwen2.5:7b'}, jobs:[], sendResults:{}});
+const initial = () => ({version:1, token:randomBytes(32).toString('base64url'), accounts:[], messages:[], drafts:[], settings:{translationMode:'local',ollamaModel:'qwen2.5:7b'}, jobs:[], sendResults:{}});
 function dpapi(mode, payload) {
   if (process.platform !== 'win32') throw new Error('Protected storage is unavailable on this platform');
   const script = 'Add-Type -AssemblyName System.Security;'+(mode === 'protect'
