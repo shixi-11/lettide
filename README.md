@@ -4,12 +4,12 @@
 
 ## 下载安装
 
-当前预览版本 **0.2.1**。[下载页](https://github.com/shixi-11/lettide/releases/tag/v0.2.1) · [更新记录](CHANGELOG.md) · [English](README.en.md)
+当前预览版本 **0.2.2**。[下载页](https://github.com/shixi-11/lettide/releases/tag/v0.2.2) · [更新记录](CHANGELOG.md) · [English](README.en.md)
 
 | 系统 | 中文版「叠信」 | English “Lettide” |
 | --- | --- | --- |
-| Windows 10 / 11，64 位 | [下载安装程序](https://github.com/shixi-11/lettide/releases/download/v0.2.1/Lettide-0.2.1-win-x64-zh-CN.exe) | [Download installer](https://github.com/shixi-11/lettide/releases/download/v0.2.1/Lettide-0.2.1-win-x64-en.exe) |
-| macOS 12+，Apple 芯片与 Intel 通用 | [下载 DMG](https://github.com/shixi-11/lettide/releases/download/v0.2.1/Lettide-0.2.1-mac-universal-zh-CN.dmg) | [Download DMG](https://github.com/shixi-11/lettide/releases/download/v0.2.1/Lettide-0.2.1-mac-universal-en.dmg) |
+| Windows 10 / 11，64 位 | [下载安装程序](https://github.com/shixi-11/lettide/releases/download/v0.2.2/Lettide-0.2.2-win-x64-zh-CN.exe) | [Download installer](https://github.com/shixi-11/lettide/releases/download/v0.2.2/Lettide-0.2.2-win-x64-en.exe) |
+| macOS 12+，Apple 芯片与 Intel 通用 | [下载 DMG](https://github.com/shixi-11/lettide/releases/download/v0.2.2/Lettide-0.2.2-mac-universal-zh-CN.dmg) | [Download DMG](https://github.com/shixi-11/lettide/releases/download/v0.2.2/Lettide-0.2.2-mac-universal-en.dmg) |
 
 Windows 双击安装；macOS 打开 DMG 后把应用拖入「应用程序」。内置运行环境，无需安装 Node.js。中文版与英文版功能相同，可在设置中切换中文、English 或跟随系统。
 
@@ -17,7 +17,7 @@ Windows 双击安装；macOS 打开 DMG 后把应用拖入「应用程序」。�
 
 ## 开始使用
 
-1. 添加邮箱。同一平台可添加多个账号。QQ 使用邮箱或号码与授权码；GoDaddy Professional 使用邮箱密码；Gmail 与 Microsoft 365 在默认浏览器授权。
+1. 添加邮箱。同一平台可添加多个账号。QQ 使用邮箱或号码与授权码；GoDaddy Professional 使用邮箱密码；Gmail 与 Microsoft 365 在默认浏览器授权。左上角点击切换邮箱，账号较多时可以搜索；文件夹与标签跟随当前邮箱，选择「全部邮箱」可统一阅读。
 2. Gmail 和 Microsoft 365 首次需有效的 OAuth 应用配置。当前没有附带发行者的授权应用，不能跳过注册步骤；见 [邮箱接入](docs/邮箱接入.md)。QQ 获取授权码的入口已放在连接页面。
 3. 点击「翻译」，译文直接显示在旁边，无需翻译密钥、连接助手或安装模型。
 4. 需要 AI 时，点击「AI 连接 → 配置 AI 助手」，再重启相应客户端。

@@ -10,6 +10,7 @@ const dictionary={
  '回复邮件':'Reply','发件邮箱':'From account','收件人':'To','name@example.com，多位用英文逗号分隔':'name@example.com, separate recipients with commas','抄送':'Cc','可选':'Optional','主题':'Subject','邮件主题':'Email subject','邮件正文':'Email body','写下你想说的话…':'Write your message…','正在发送…':'Sending…','确认发送':'Confirm send','继续编辑':'Keep editing','保存草稿':'Save draft','发送邮件':'Send email','发送结果待确认':'Send outcome unknown','发送结果暂不确定。请检查已发送邮件，避免重复发送。':'The send outcome is unknown. Check Sent before trying again.',
  '连接已过期，请刷新页面。':'Connection expired. Reload the app.','请求被拒绝，请从本机打开应用。':'Request denied. Open the app on this device.','无法自动复制，请手动选中内容。':'Could not copy. Please select the text manually.','Google translation is temporarily unavailable':'Google 翻译暂时不可用，请稍后重试。','Email text is empty or too long to translate':'邮件正文为空或过长，暂时无法翻译。','Could not verify both incoming and outgoing mail settings; account was not saved':'无法连接邮箱，请检查邮箱地址和授权码。','Provider update failed':'邮件操作未成功，请检查连接后重试。',
 };
+Object.assign(dictionary,{'切换邮箱':'Switch account','关闭邮箱列表':'Close account list','全部邮箱':'All inboxes','统一收件箱':'Unified inbox','个账号':'accounts','搜索邮箱':'Search accounts','没有找到邮箱':'No accounts found'});
 let preference=localStorage.getItem('lettide-language')||window.lettide?.initialLanguage||'system';
 const listeners=new Set();
 export const getLanguage=()=>preference;
