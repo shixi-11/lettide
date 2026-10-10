@@ -64,7 +64,7 @@ node scripts/Build-Desktop.mjs --mac --en
 
 界面测试只用隔离的虚构数据。`tests/ui-smoke.mjs` 使用 Playwright，以 `PLAYWRIGHT_MODULE` 指向本机安装的模块。`output` 不进入 Git。
 
-发布时统一更新三个包的版本与更新记录，验证并提交源码，创建同版本标签与 GitHub Release，再推送标签触发安装包构建。使用者直接下载 Release 安装包即可。
+发布时统一更新三个包的版本与双语更新记录，验证、提交并同步源码，再推送同版本标签。工作流会自动生成中英文发布页和安装包下载标签。使用者直接下载 Release 安装包即可；维护流程见[发布规范](docs/releasing.md)。
 
 ## 许可
 

@@ -2,15 +2,33 @@
 
 ## 0.2.2
 
+### 中文
+
 - 邮箱切换器点击展开，支持搜索账号；只显示当前邮箱的文件夹与标签。
-- 各邮箱分别记住上次打开的分类；长地址和文件夹名省略显示，分类列表可收起和滚动。
+- 各邮箱在当前会话中分别记住上次打开的分类；长地址和文件夹名省略显示，分类列表可收起和滚动。
 - 草稿数量与列表跟随当前邮箱。
+
+### English
+
+- Open the account switcher to choose or search your accounts. Only the selected account's folders and labels are shown.
+- Each account remembers its last folder during the current session. Long addresses and folder names are shortened on screen, and folder lists can collapse and scroll.
+- Draft counts and lists follow the selected account.
 
 ## 0.2.1
 
+### 中文
+
 - 修复安装包依赖独立性与 macOS 通用构建。
+- 安装包包含 0.2.0 的正文在线翻译、文件夹与 Gmail 标签同步、归档与已删除、移动与恢复、附件发送、中英文切换、紧凑界面和新图标。
+
+### English
+
+- Fix standalone installer dependencies and the macOS universal build.
+- The installers include the 0.2.0 features: inline translation, synced folders and Gmail labels, archive and trash, moving and restoring messages, attachments, language switching, a compact interface and the new icon.
 
 ## 0.2.0
+
+### 中文
 
 - 点击即可在线翻译正文，保留原文与对照阅读；无需配置翻译密钥。
 - 同步邮箱实际文件夹和 Gmail 标签，支持归档、已删除、垃圾邮件、移动与恢复。
@@ -19,7 +37,23 @@
 - QQ 连接只需邮箱与授权码；Google 和 Microsoft 授权明确打开默认浏览器。
 - Windows 安装程序与 macOS 通用 DMG 构建，中文名称「叠信」，英文名称「Lettide」。
 
+### English
+
+- Translate email bodies inline without a translation API key, with the original and translation available side by side.
+- Sync actual mail folders and Gmail labels, including Archive, Trash and Junk; move messages and restore them to Inbox.
+- Save and send attachments with drafts, with Cc and Bcc support.
+- Switch between English, Chinese and the system language, with compact light and dark themes and a new app icon.
+- Connect QQ Mail with an email address and app password. Google and Microsoft authorization explicitly opens the default browser.
+- Build Windows installers and macOS universal DMGs. Chinese installers use the name 叠信; English installers use Lettide.
+
 ## 0.1.0
+
+### 中文
 
 - 多账号 Gmail、GoDaddy、QQ 邮箱统一阅读与发送。
 - 本机加密连接，Codex、Claude Code 和 Claude Desktop 共用 MCP 后台。
+
+### English
+
+- Read and send mail from multiple Gmail, GoDaddy and QQ Mail accounts in one app.
+- Protect account connections with local encryption and share a local MCP service with Codex, Claude Code and Claude Desktop.

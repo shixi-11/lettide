@@ -2,7 +2,7 @@
 
 A calmer home for Gmail, GoDaddy and QQ Mail, with inline translation and shared mail tools for Codex and Claude.
 
-**Preview 0.2.2** · [Downloads](https://github.com/shixi-11/lettide/releases/tag/v0.2.2) · [中文说明](README.md)
+**Preview 0.2.2** · [Downloads](https://github.com/shixi-11/lettide/releases/tag/v0.2.2) · [Changelog](CHANGELOG.md) · [中文说明](README.md)
 
 | Platform | English installer | Chinese installer |
 | --- | --- | --- |
@@ -15,10 +15,12 @@ Read and search cached mail, sync folders and Gmail labels, archive, move, resto
 
 Use the account switcher at the top left to choose or search your accounts. Folders and labels belong to the selected account; choose All inboxes for a unified view. Each account remembers its last folder during the current session.
 
-Google and Microsoft require an OAuth app registration; a publisher OAuth client is not bundled yet. QQ requires an app password from its official settings. See the [connection guide](docs/邮箱接入.md).
+Google and Microsoft require an OAuth app registration; a publisher OAuth client is not bundled yet. QQ requires an app password from its official settings. See the [account setup guide](docs/account-setup.en.md).
 
 Translate displays the result beside the original. Only the body you explicitly translate is sent to Google's anonymous web service; no account credentials, subject or attachments. This is not the supported Cloud Translation API and may be limited or unavailable. No paid fallback is used. Syncing never automatically translates mail.
 
 Windows protects local data with CurrentUser DPAPI; macOS stores an AES-256-GCM key in Keychain. Local data and configuration do not belong in Git. Sending through MCP requires explicit confirmation.
 
 Source is available under [PolyForm Noncommercial 1.0.0](LICENSE). Commercial use requires written authorization. See [NOTICE](NOTICE).
+
+For maintainers: [release conventions](docs/releasing.md) cover bilingual notes, installer labels and version tags.

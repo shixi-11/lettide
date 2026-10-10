@@ -3,10 +3,48 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
+    inputs:
+      notes_only:
+        description: '只更新双语说明 / Update bilingual notes only'
+        type: boolean
+        default: false
 permissions:
   contents: write
 jobs:
+  prepare_release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Validate and generate bilingual notes
+        run: |
+          node --test tests/release-notes.test.mjs
+          node scripts/Prepare-Release.mjs
+      - name: Create or update bilingual release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          NOTES_ONLY: ${{ inputs.notes_only }}
+        shell: bash
+        run: |
+          version="$(node -p "require('./desktop/package.json').version")"
+          tag="v$version"
+          tag_commit="$(git rev-parse "$tag^{commit}")"
+          if [ "$NOTES_ONLY" != "true" ] && [ "$tag_commit" != "$(git rev-parse HEAD)" ]; then
+            echo "Installer builds must use the exact version tag. Use notes_only for documentation updates."
+            exit 1
+          fi
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release edit "$tag" --title "叠信 · Lettide $version" --notes-file "output/release-notes-$version.md"
+          else
+            gh release create "$tag" --verify-tag --prerelease --title "叠信 · Lettide $version" --notes-file "output/release-notes-$version.md"
+          fi
   build:
+    needs: prepare_release
+    if: ${{ inputs.notes_only != true }}
     strategy:
       fail-fast: false
       matrix:
@@ -59,4 +97,10 @@ jobs:
           shopt -s nullglob
           files=(output/desktop/*.exe output/desktop/*.dmg)
           tag="$(node -p "'v'+require('./desktop/package.json').version")"
-          gh release upload "$tag" "${files[@]}" --clobber
+          language="简体中文 / Chinese"
+          if [ "${{ matrix.language }}" = "en" ]; then language="English / 英文"; fi
+          platform="Windows x64"
+          if [ "${{ runner.os }}" = "macOS" ]; then platform="macOS · Apple Silicon + Intel"; fi
+          for file in "${files[@]}"; do
+            gh release upload "$tag" "$file#$platform · $language" --clobber
+          done
