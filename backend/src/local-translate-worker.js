@@ -5,6 +5,8 @@ import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { once } from 'node:events';
 import { finished } from 'node:stream/promises';
+import { detectSourceLanguage, normalizeLanguage } from './translation-language.js';
+import { assertTranslationChanged, tokenSegments } from './translation-text.js';
 
 const MODEL = 'Xenova/nllb-200-distilled-600M';
 const REVISION = '261c31d1a5732c67cdd16d80e8d6088507c7ccea';
@@ -23,7 +25,9 @@ const SHA256 = {
 const TOTAL = FILES.reduce((n, [, size]) => n + size, 0);
 let pipe;
 let busy = false;
-let translationQueue = Promise.resolve();
+const translationQueue = [];
+let activeTranslation = null;
+let activeStarted = false;
 let lastProgressReport = 0;
 const sendStatus = (state, extra = {}) => {
   const now = Date.now();
@@ -122,15 +126,6 @@ async function doDownload() {
   } finally { busy = false; }
 }
 
-function guessSource(text) {
-  if (/[\u3040-\u30ff]/u.test(text)) return 'jpn_Jpan';
-  if (/[\uac00-\ud7af]/u.test(text)) return 'kor_Hang';
-  if (/[\u3400-\u9fff]/u.test(text)) return /[體國學說愛門風]/u.test(text) ? 'zho_Hant' : 'zho_Hans';
-  if (/[àâçéèêëîïôûùüÿœæ]/iu.test(text) || /\b(le|la|les|des|une|est|bonjour|merci|vous|pour)\b/iu.test(text)) return 'fra_Latn';
-  return 'eng_Latn';
-}
-const codes = { '简体中文': 'zho_Hans', English: 'eng_Latn', 日本語: 'jpn_Jpan', 한국어: 'kor_Hang', '繁體中文': 'zho_Hant', Français: 'fra_Latn' };
-const URL_RE = /((?:https?:\/\/|www\.)[^\s<>()]+)/giu;
 const MAX_SOURCE_TOKENS = 800;
 const MAX_OUTPUT_TOKENS = 512;
 const TRANSLATION_BATCH_SIZE = 4;
@@ -138,32 +133,6 @@ async function tokenCount(text) {
   const encoded = await pipe.tokenizer(text, { add_special_tokens: true });
   const ids = encoded.input_ids;
   return ids?.dims?.at(-1) ?? ids?.data?.length ?? ids?.length ?? 0;
-}
-async function tokenSegments(text, tokenLimit = MAX_SOURCE_TOKENS) {
-  const out = [];
-  for (const paragraph of text.split(/(\r?\n+)/u)) {
-    if (!paragraph.trim() || paragraph.includes('\n')) { out.push({ text: paragraph, translate: false }); continue; }
-    for (const [i, piece] of paragraph.split(URL_RE).entries()) {
-      if (!piece) continue;
-      if (i % 2) { out.push({ text: piece, translate: false }); continue; }
-      let rest = piece;
-      while (rest) {
-        if (await tokenCount(rest) <= tokenLimit) { out.push({ text: rest, translate: true }); break; }
-        let low = 1; let high = rest.length; let best = 0;
-        while (low <= high) {
-          const mid = Math.floor((low + high) / 2);
-          if (await tokenCount(rest.slice(0, mid)) <= tokenLimit) { best = mid; low = mid + 1; }
-          else high = mid - 1;
-        }
-        if (!best) throw new Error('Could not split text within the model token limit');
-        let cut = best;
-        const boundary = Math.max(rest.lastIndexOf(' ', best), rest.lastIndexOf('\t', best), rest.lastIndexOf('.', best), rest.lastIndexOf('。', best), rest.lastIndexOf('!', best), rest.lastIndexOf('?', best));
-        if (boundary >= best * 0.65) cut = boundary + 1;
-        out.push({ text: rest.slice(0, cut), translate: true }); rest = rest.slice(cut);
-      }
-    }
-  }
-  return out;
 }
 async function translatePiece(text, source, target, depth = 0) {
   const leading = text.match(/^\s*/u)?.[0] || '';
@@ -175,7 +144,7 @@ async function translatePiece(text, source, target, depth = 0) {
   if (typeof translated !== 'string' || !translated.trim()) throw new Error('Local model returned no translation');
   if (await tokenCount(translated) < MAX_OUTPUT_TOKENS - 1) return leading + translated.trim() + trailing;
   if (depth >= 3) throw new Error('Translation output remains too long after splitting; shorten this text and retry');
-  const smaller = await tokenSegments(body, Math.max(100, Math.floor(MAX_SOURCE_TOKENS / 2 ** (depth + 1))));
+  const smaller = await tokenSegments(body, tokenCount, { tokenLimit: Math.max(100, Math.floor(MAX_SOURCE_TOKENS / 2 ** (depth + 1))) });
   let output = '';
   for (const part of smaller) output += part.translate ? await translatePiece(part.text, source, target, depth + 1) : part.text;
   return leading + output + trailing;
@@ -198,7 +167,7 @@ async function translatePieces(texts, source, target) {
   return output;
 }
 async function translatePreservingStructure(text, source, target, onProgress) {
-  const parts = await tokenSegments(text);
+  const parts = await tokenSegments(text, tokenCount, { tokenLimit: MAX_SOURCE_TOKENS, onProgress });
   const total = parts.filter(part => part.translate && part.text.trim()).length;
   let completed = 0;
   onProgress({ phase: 'running', completed, total });
@@ -228,21 +197,72 @@ async function translatePreservingStructure(text, source, target, onProgress) {
 }
 async function translate(text, targetLanguage, sourceLanguage, onProgress = () => {}) {
   if (!pipe) throw new Error('Offline translation model is not ready');
-  const target = codes[targetLanguage];
+  const target = normalizeLanguage(targetLanguage);
   if (!target) throw new Error('Unsupported target language');
-  const source = codes[sourceLanguage] || guessSource(text);
+  const source = sourceLanguage ? normalizeLanguage(sourceLanguage) : detectSourceLanguage(text);
+  if (sourceLanguage && !source) throw new Error('Unsupported source language');
+  if (!source) throw new Error('Source language is ambiguous. Choose the source language and retry.');
   if (source === target) return text;
-  onProgress({ phase: 'preparing', completed: 0, total: 0 });
-  return translatePreservingStructure(text, source, target, onProgress);
+  onProgress({ phase: 'preparing', completed: 0, total: text.length });
+  const result = await translatePreservingStructure(text, source, target, onProgress);
+  assertTranslationChanged(text, result, source, target);
+  return result;
+}
+
+function reportQueue() {
+  let position = activeTranslation ? 1 : 0;
+  for (const item of translationQueue) {
+    parentPort.postMessage({ type: 'translation-progress', id: item.id, value: { phase: 'queued', position, completed: 0, total: position } });
+    position++;
+  }
+}
+
+function scheduleNextTranslation() {
+  if (activeTranslation || !translationQueue.length) return;
+  activeTranslation = translationQueue.shift();
+  activeStarted = false;
+  reportQueue();
+  parentPort.postMessage({ type: 'translation-start', id: activeTranslation.id, total: activeTranslation.text.length });
+}
+
+async function runActiveTranslation() {
+  if (!activeTranslation || activeStarted) return;
+  activeStarted = true;
+  const item = activeTranslation;
+  try {
+    const text = await translate(item.text, item.targetLanguage, item.sourceLanguage, value => parentPort.postMessage({ type: 'translation-progress', id: item.id, value }));
+    parentPort.postMessage({ type: 'result', id: item.id, text });
+  } catch (error) {
+    parentPort.postMessage({ type: 'result', id: item.id, error: error?.message || 'Local translation failed' });
+  } finally {
+    activeTranslation = null;
+    activeStarted = false;
+    reportQueue();
+    setImmediate(scheduleNextTranslation);
+  }
 }
 
 parentPort.on('message', async (m) => {
   if (m.type === 'download') { void doDownload(); return; }
   if (m.type === 'translate') {
-    translationQueue = translationQueue.then(async () => {
-      try { parentPort.postMessage({ type: 'result', id: m.id, text: await translate(m.text, m.targetLanguage, m.sourceLanguage, value => parentPort.postMessage({ type: 'translation-progress', id: m.id, value })) }); }
-      catch (error) { parentPort.postMessage({ type: 'result', id: m.id, error: error?.message || 'Local translation failed' }); }
-    });
+    translationQueue.push(m);
+    reportQueue();
+    scheduleNextTranslation();
+    return;
+  }
+  if (m.type === 'start-ack') {
+    if (activeTranslation?.id === m.id) void runActiveTranslation();
+    return;
+  }
+  if (m.type === 'cancel') {
+    const index = translationQueue.findIndex(item => item.id === m.id);
+    if (index >= 0) {
+      translationQueue.splice(index, 1);
+      parentPort.postMessage({ type: 'cancel-ack', id: m.id, phase: 'queued' });
+      reportQueue();
+    } else if (activeTranslation?.id === m.id) {
+      parentPort.postMessage({ type: 'cancel-ack', id: m.id, phase: 'active' });
+    } else parentPort.postMessage({ type: 'cancel-ack', id: m.id, phase: 'done' });
   }
 });
 

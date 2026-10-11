@@ -140,8 +140,8 @@ test('Gmail MIME and SMTP sends decode base64 attachments while retaining reply 
  const raw=Buffer.from(await composeGmailRaw({from:'a@example.test',to:'b@example.test',subject:'file',text:'body',attachments:[{filename:attachment.filename,content:Buffer.from(attachment.content,'base64'),contentType:attachment.contentType}]}),'base64url').toString('utf8');
  assert.match(raw,/filename="?hello\.txt"?/);assert.match(raw,/aGVsbG8gYXR0YWNobWVudA==/);
  let sentOptions;const account={id:'smtp-1',provider:'qq',email:'a@example.test',password:'mock'},state=stateFor(account);state.messages.push({id:'source',providerRef:{type:'imap',rfcMessageId:'<original@example.test>',references:'<older@example.test>'}});
- await sendMail(state,account,{to:'b@example.test',subject:'reply',text:'body',replyToMessageId:'source',attachments:[attachment]},{smtpTransportFactory:()=>({sendMail:async options=>(sentOptions=options,{messageId:'sent'})})});
- assert.equal(sentOptions.attachments[0].content.toString(),'hello attachment');assert.equal(sentOptions.inReplyTo,'<original@example.test>');assert.equal(sentOptions.references,'<original@example.test>');
+ await sendMail(state,account,{to:'b@example.test',subject:'reply',text:'body',replyToMessageId:'source',attachments:[attachment]},{smtpTransportFactory:()=>({sendMail:async options=>(sentOptions=options,{messageId:'sent'})}),imapClientFactory:()=>({connect:async()=>{throw new Error('fixture copy failure')},logout:async()=>{}})});
+ assert.equal(sentOptions.attachments[0].content.toString(),'hello attachment');assert.equal(sentOptions.inReplyTo,'<original@example.test>');assert.equal(sentOptions.references,'<older@example.test> <original@example.test>');
 });
 
 test('Gmail send request carries an attached MIME part and keeps Gmail reply threading',async()=>{

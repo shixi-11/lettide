@@ -1,5 +1,19 @@
 # 更新记录 / Changelog
 
+## 0.3.8
+
+### English
+
+- Save SMTP messages to the server's Sent folder with their attachments and reply headers. If saving fails after sending, retry only the copy and check its Message-ID to avoid duplicates.
+- Add source language selection and cancellation for offline translations. Fix mixed-language detection, discard older translation caches, and report unchanged output as an error when translating between different languages.
+- Bound stalled translation requests and show preparation and queue progress. Reduce repeated tokenization when splitting long emails; offline processing time still depends on the email and device.
+
+### 中文
+
+- SMTP 发信后将附件与回复信息一起保存到服务器的已发送文件夹。发送成功但副本保存失败时，可单独补存，并检查邮件标识避免重复。
+- 离线翻译增加原文语言选择与取消入口，修复混合语言识别并更新翻译缓存。翻译不同语言时，如果模型返回原文，会明确提示失败。
+- 为停滞的翻译请求设置超时，显示准备和排队状态，减少长邮件分段时的重复计算。离线翻译耗时仍取决于邮件长度与设备性能。
+
 ## 0.3.7
 
 ### English

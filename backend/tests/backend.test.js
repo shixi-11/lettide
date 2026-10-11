@@ -77,3 +77,24 @@ test('drafts save incomplete recipient details and update in place until send is
 test('different idempotency keys cannot send one draft twice concurrently',async()=>{let release,started;const gate=new Promise(r=>release=r),entered=new Promise(r=>started=r);let sends=0;const f=await fixture({mailSender:async()=>{sends++;started();await gate;return {messageId:'sent'};}});try{const auth={...f.headers,authorization:`Bearer ${f.store.state.token}`};await f.store.mutate(s=>{s.accounts.push({id:'a'});s.drafts.push({id:'d',accountId:'a',to:'reader@example.test',subject:'Hi',text:'body',status:'draft'});});const first=fetch(f.url+'/api/drafts/d/send',{method:'POST',headers:{...auth,'Idempotency-Key':'key-1'}});await entered;const second=await fetch(f.url+'/api/drafts/d/send',{method:'POST',headers:{...auth,'Idempotency-Key':'key-2'}});assert.equal(second.status,409);release();assert.equal((await first).status,200);assert.equal(sends,1);}finally{release();await f.close();}});
 
 test('Windows CurrentUser DPAPI store encrypts and reads back in an isolated temporary folder',{skip:process.platform!=='win32'},async()=>{const dir=await mkdtemp(path.join(os.tmpdir(),'youqiao-dpapi-')),file=path.join(dir,'state.dpapi');try{const store=await new Store({file}).open();await store.mutate(s=>s.settings.translationMode='assistant');await store.close();const reader=await new Store({file,readOnly:true}).open();assert.equal(reader.state.settings.translationMode,'assistant');}finally{await rm(dir,{recursive:true,force:true});}});
+
+
+test('offline translations invalidate previous engine caches and keep explicit source language caches separate',async()=>{
+ const calls=[];const f=await fixture({localTranslator:{status:async()=>({state:'ready'}),translate:async(text,target,options)=>{calls.push(options);return '虚构译文';}}});
+ try{
+  const headers={authorization:`Bearer ${f.store.state.token}`,'content-type':'application/json'};
+  await f.store.mutate(s=>{s.messages.push({id:'mixed',text:'Hello, this is a fictional email. 谢谢。'});s.jobs.push({id:'old-cache',messageId:'mixed',text:s.messages[0].text,targetLanguage:'简体中文',provider:'local',status:'completed',translation:s.messages[0].text});});
+  const translate=sourceLanguage=>fetch(f.url+'/api/translations',{method:'POST',headers,body:JSON.stringify({messageId:'mixed',targetLanguage:'简体中文',sourceLanguage})});
+  assert.equal((await translate('English')).status,200);assert.equal(calls.length,1);assert.equal(calls[0].sourceLanguage,'eng_Latn');
+  assert.equal((await translate('English')).status,200);assert.equal(calls.length,1);assert.equal((await translate('Français')).status,200);assert.equal(calls.length,2);
+  assert.equal((await translate('Unsupported')).status,400);assert.equal(calls.length,2);
+ }finally{await f.close()}
+});
+
+test('cancel API addresses a translation request without invoking a translator or changing email state',async()=>{
+ let requested;const f=await fixture({localTranslator:{status:async()=>({state:'ready'}),cancel:async id=>{requested=id;return true},translate:async()=>assert.fail('Cancellation must not start translation')}});
+ try{const headers={authorization:`Bearer ${f.store.state.token}`,'content-type':'application/json'};
+  let response=await fetch(f.url+'/api/translations/local/cancel',{method:'POST',headers,body:JSON.stringify({requestId:'fictional-translation'})});assert.equal(response.status,200);assert.deepEqual(await response.json(),{cancelled:true});assert.equal(requested,'fictional-translation');
+  response=await fetch(f.url+'/api/translations/local/cancel',{method:'POST',headers,body:'{}'});assert.equal(response.status,400);assert.equal(f.store.state.messages.length,0);
+ }finally{await f.close()}
+});

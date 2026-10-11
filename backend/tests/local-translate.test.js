@@ -23,13 +23,90 @@ test('local translator starts download explicitly, reports progress, and gates t
   worker.emit('message', { type: 'status', value: { state: 'downloading', progress: 42, downloadedBytes: 100, totalBytes: 200 } });
   assert.equal((await translator.status()).progress, 42);
   worker.emit('message', { type: 'status', value: { state: 'ready', progress: 100, downloadedBytes: 200 } });
-  const pending = translator.translate('Hello', '简体中文', { requestId: 'fictional-request' });
+  const pending = translator.translate('Hello', '简体中文', { sourceLanguage: 'English', requestId: 'fictional-request' });
   assert.equal(worker.messages.at(-1).targetLanguage, '简体中文');
+  assert.equal(worker.messages.at(-1).sourceLanguage, 'English');
+  worker.emit('message', { type: 'translation-progress', id: worker.messages.at(-1).id, value: { phase: 'queued', position: 0, completed: 0, total: 0 } });
+  assert.equal((await translator.status()).translation.phase, 'queued');
+  worker.emit('message', { type: 'translation-start', id: worker.messages.at(-1).id, total: 5 });
+  assert.equal(worker.messages.at(-1).type, 'start-ack');
+  assert.equal((await translator.status()).translation.phase, 'preparing');
   worker.emit('message', { type: 'translation-progress', id: worker.messages.at(-1).id, value: { phase: 'running', completed: 1, total: 3 } });
   assert.deepEqual((await translator.status()).translation, { requestId: 'fictional-request', phase: 'running', completed: 1, total: 3 });
   worker.emit('message', { type: 'result', id: worker.messages.at(-1).id, text: '你好' });
   assert.equal(await pending, '你好');
   assert.equal((await translator.status()).translation, null);
+  await translator.close();
+});
+
+test('queue timeout covers a request that never receives a worker progress message', async () => {
+  const workers = [];
+  const translator = new LocalTranslator({
+    workerFactory: () => { const worker = new FakeWorker(); workers.push(worker); return worker; },
+    queueTimeoutMs: () => 15,
+    translateTimeoutMs: () => 1000,
+  });
+  workers[0].emit('message', { type: 'status', value: { state: 'ready' } });
+  const pending = translator.translate('Fictional queued text.', '简体中文', { sourceLanguage: 'English' });
+  await assert.rejects(pending, /queue timed out/i);
+  await new Promise(resolve => setTimeout(resolve, 0));
+  assert.equal(workers.length, 2);
+  await translator.close();
+});
+
+test('a normal active request does not consume the following request queue timeout', async () => {
+  const workers = [];
+  const translator = new LocalTranslator({
+    workerFactory: () => { const worker = new FakeWorker(); workers.push(worker); return worker; },
+    queueTimeoutMs: position => position === 0 ? 500 : 1000,
+    translateTimeoutMs: () => 500,
+  });
+  workers[0].emit('message', { type: 'status', value: { state: 'ready' } });
+  const first = translator.translate('First fictional text.', '简体中文', { sourceLanguage: 'English' });
+  const second = translator.translate('Second fictional text.', '简体中文', { sourceLanguage: 'English' });
+  const firstId = workers[0].messages[0].id;
+  const secondId = workers[0].messages[1].id;
+  workers[0].emit('message', { type: 'translation-progress', id: firstId, value: { phase: 'preparing', completed: 0, total: 20 } });
+  await new Promise(resolve => setTimeout(resolve, 60));
+  assert.equal((await translator.status()).state, 'ready');
+  workers[0].emit('message', { type: 'result', id: firstId, text: '第一条虚构译文。' });
+  workers[0].emit('message', { type: 'translation-progress', id: secondId, value: { phase: 'preparing', completed: 0, total: 21 } });
+  workers[0].emit('message', { type: 'result', id: secondId, text: '第二条虚构译文。' });
+  assert.equal(await first, '第一条虚构译文。');
+  assert.equal(await second, '第二条虚构译文。');
+  await translator.close();
+});
+
+test('an explicitly cancelled queued request is removed without restarting the worker', async () => {
+  const workers = [];
+  const translator = new LocalTranslator({
+    workerFactory: () => { const worker = new FakeWorker(); workers.push(worker); return worker; },
+  });
+  workers[0].emit('message', { type: 'status', value: { state: 'ready' } });
+  const pending = translator.translate('Fictional queued mail.', '简体中文', { sourceLanguage: 'English', requestId: 'queued-cancel' });
+  assert.equal(await translator.cancel('queued-cancel'), true);
+  assert.equal(workers[0].messages.at(-1).type, 'cancel');
+  workers[0].emit('message', { type: 'cancel-ack', id: workers[0].messages[0].id, phase: 'queued' });
+  await assert.rejects(pending, /cancelled/i);
+  assert.equal(workers.length, 1);
+  assert.equal((await translator.status()).state, 'ready');
+  await translator.close();
+});
+
+test('cancelling active inference terminates the worker and rejects affected queued requests', async () => {
+  const workers = [];
+  const translator = new LocalTranslator({
+    workerFactory: () => { const worker = new FakeWorker(); workers.push(worker); return worker; },
+  });
+  workers[0].emit('message', { type: 'status', value: { state: 'ready' } });
+  const active = translator.translate('Fictional active mail.', '简体中文', { sourceLanguage: 'English', requestId: 'active-cancel' });
+  const queued = translator.translate('Fictional queued mail.', '简体中文', { sourceLanguage: 'English', requestId: 'also-affected' });
+  workers[0].emit('message', { type: 'translation-progress', id: workers[0].messages[0].id, value: { phase: 'preparing', completed: 0, total: 21 } });
+  assert.equal(await translator.cancel('active-cancel'), true);
+  await assert.rejects(active, /cancelled/i);
+  await assert.rejects(queued, /cancelled.*pending requests were interrupted/i);
+  assert.equal(workers.length, 2);
+  assert.equal((await translator.status()).state, 'loading');
   await translator.close();
 });
 

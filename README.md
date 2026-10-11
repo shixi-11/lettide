@@ -4,12 +4,12 @@
 
 ## 下载安装
 
-当前预览版本 **0.3.5**。[下载页](https://github.com/shixi-11/lettide/releases/tag/v0.3.5) · [更新记录](CHANGELOG.md) · [English](README.en.md)
+当前预览版本 **0.3.8**。[下载页](https://github.com/shixi-11/lettide/releases/tag/v0.3.8) · [更新记录](CHANGELOG.md) · [English](README.en.md)
 
 | 系统 | 中文版「叠信」 | English “Lettide” |
 | --- | --- | --- |
-| Windows 10 / 11，64 位 | [下载安装程序](https://github.com/shixi-11/lettide/releases/download/v0.3.5/Lettide-0.3.5-win-x64-zh-CN.exe) | [Download installer](https://github.com/shixi-11/lettide/releases/download/v0.3.5/Lettide-0.3.5-win-x64-en.exe) |
-| macOS 12+，Apple 芯片与 Intel 通用 | [下载 DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.5/Lettide-0.3.5-mac-universal-zh-CN.dmg) | [Download DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.5/Lettide-0.3.5-mac-universal-en.dmg) |
+| Windows 10 / 11，64 位 | [下载安装程序](https://github.com/shixi-11/lettide/releases/download/v0.3.8/Lettide-0.3.8-win-x64-zh-CN.exe) | [Download installer](https://github.com/shixi-11/lettide/releases/download/v0.3.8/Lettide-0.3.8-win-x64-en.exe) |
+| macOS 12+，Apple 芯片与 Intel 通用 | [下载 DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.8/Lettide-0.3.8-mac-universal-zh-CN.dmg) | [Download DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.8/Lettide-0.3.8-mac-universal-en.dmg) |
 
 Windows 双击安装；macOS 打开 DMG 后把应用拖入「应用程序」。内置运行环境，无需安装 Node.js。中文版与英文版功能相同，可在设置中切换中文、English 或跟随系统。
 
@@ -33,7 +33,7 @@ Windows 双击安装；macOS 打开 DMG 后把应用拖入「应用程序」。�
 - 撰写、回复、转发、本机草稿、查看服务商草稿、抄送、密送、附件下载与发送。
 - 每封最多 10 个附件，总大小不超过 10 MB。
 - 日间、夜间、系统外观，中英文及系统语言。
-- MCP 读取、搜索、同步、草稿与显式确认发送工具。
+- MCP 读取、搜索、同步、草稿与显式确认发送工具；SMTP 已发出邮件可单独补存副本，无需重发。
 
 每个文件夹缓存最近 60 封邮件，搜索针对这些缓存。QQ 等 IMAP 邮箱先加载列表，打开邮件后下载并缓存正文和附件；离线阅读和正文搜索使用已下载的内容。收件箱与已发送约每分钟检查，其他文件夹每分钟分批检查，目录约每十分钟刷新。选择文件夹或点击同步可立即更新当前分类。
 
@@ -41,7 +41,7 @@ Windows 双击安装；macOS 打开 DMG 后把应用拖入「应用程序」。�
 
 ## 翻译与隐私
 
-点击「译文」或「对照」后，使用本机离线模型处理当前正文，原文与译文保留在本机。首次模型下载连接 Hugging Face，下载请求不包含邮件正文；之后翻译禁止远程模型访问，不自动改用在线或收费服务。模型加载和生成需要一定时间，已经缓存的译文直接显示。
+点击「译文」或「对照」后，使用本机离线模型处理当前正文，原文与译文保留在本机。首次模型下载连接 Hugging Face，下载请求不包含邮件正文；之后翻译禁止远程模型访问，不自动改用在线或收费服务。模型加载和生成需要一定时间，已经缓存的译文直接显示。自动检测不准确时可选择「原文语言」，等待中可取消翻译；模型返回原文时会提示重试。
 
 离线模型使用 Meta NLLB-200 的量化 ONNX 版本；详见 [模型来源与许可](docs/translation-model.md)。高级助手任务仍可显式选择 MCP 翻译队列。
 

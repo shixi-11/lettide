@@ -1,4 +1,6 @@
 const dictionary={
+ '原文语言':'Source language','自动检测':'Auto-detect','取消翻译':'Cancel translation','正在准备邮件分段…':'Preparing email segments…','Source language is ambiguous. Choose the source language and retry.':'无法确定原文语言，请选择原文语言后重试。','Local model returned the original text for a different target language':'模型没有生成有效译文，请检查原文语言后重试。','Local translation cancelled.':'翻译已取消。','Local translation queue is full. Wait for a translation to finish, then retry.':'翻译任务较多，请取消不需要的任务或稍后重试。','Local translation queue timed out. The model is restarting; wait until it is ready, then retry.':'等待翻译超时，正在重新准备模型。就绪后请重试。','Local translation cancelled; other pending requests were interrupted while the model restarted.':'翻译已中断，模型就绪后可以重试。',
+ '邮件已发出，副本待保存':'Email sent; Sent copy pending','补存副本':'Save Sent copy','副本已保存到已发送':'Copy saved to Sent','邮件已发出，副本暂未保存。请稍后重试保存，无需重新发送。':'Your email was sent, but its Sent copy could not be saved. Retry saving the copy later; do not resend the email.',
  '正在加载正文…':'Loading message…','重试':'Retry','Could not load email content. Please retry.':'无法加载邮件正文，请重试。',
  '正在同步邮件…':'Syncing mail…',
  'QQ 邮箱':'QQ Mail','未知发件人':'Unknown sender','关闭':'Close','写邮件':'Compose','收件箱':'Inbox','未读':'Unread','星标':'Starred','已发送':'Sent','草稿':'Drafts','归档':'Archive','垃圾邮件':'Junk','已删除':'Trash','未读邮件':'Unread mail','星标邮件':'Starred mail',

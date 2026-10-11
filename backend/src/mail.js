@@ -3,6 +3,8 @@ import nodemailer from 'nodemailer';
 import {simpleParser} from 'mailparser';
 import MailComposer from 'nodemailer/lib/mail-composer';
 import {htmlToText as convertHtmlToText} from 'html-to-text';
+import {randomUUID} from 'node:crypto';
+import {saveImapSentCopy,pendingSentCopy,selectSentMailbox} from './sent-copy.js';
 
 const address=(a)=>({name:a?.name||'',address:a?.address||''});
 export const publicMessage=(m)=>({id:m.id,accountId:m.accountId,subject:m.subject,from:m.from,to:m.to,date:m.date,text:m.text,unread:!!m.unread,starred:!!m.starred,...(m.bodyLoaded===false?{bodyLoaded:false}:{}),...(m.folder?{folder:m.folder}:{}),...(m.folderIds||m.folders?{folderIds:[...(m.folderIds||m.folders)]}:{}),...(m.replyTo?{replyTo:m.replyTo}:{}),attachments:(m.attachments||[]).map(({id,filename,size})=>({id,filename,size}))});
@@ -19,7 +21,7 @@ function defaults(a){
 const roleAliases={inbox:'inbox',sent:'sent',junk:'junk',spam:'junk',trash:'trash',deleted:'trash',archive:'archive',drafts:'drafts'};
 const standardId=role=>role;
 const encodedId=value=>Buffer.from(String(value)).toString('base64url');
-const imapRole=box=>{const use=String(box.specialUse||'').toLowerCase(),path=String(box.path||'').toLowerCase(),name=String(box.name||'').toLowerCase();if(path==='inbox'||use.includes('\\inbox'))return 'inbox';if(use.includes('\\sent')||path==='sent'||path==='sent items')return 'sent';if(use.includes('\\junk')||use.includes('\\spam')||/junk|spam/.test(`${path} ${name}`))return 'junk';if(use.includes('\\trash')||/trash|deleted items/.test(`${path} ${name}`))return 'trash';if(use.includes('\\archive')||use.includes('\\all')||/archive|all mail/.test(`${path} ${name}`))return 'archive';if(use.includes('\\drafts')||/drafts/.test(`${path} ${name}`))return 'drafts';return 'custom';};
+const imapRole=box=>{const use=String(box.specialUse||'').toLowerCase(),path=String(box.path||'').toLowerCase(),name=String(box.name||'').toLowerCase();if(path==='inbox'||use.includes('\\inbox'))return 'inbox';if(use.includes('\\sent')||/^(sent(?: items| messages| mail)?|已发送(?:邮件)?)$/.test(name||path))return 'sent';if(use.includes('\\junk')||use.includes('\\spam')||/junk|spam/.test(`${path} ${name}`))return 'junk';if(use.includes('\\trash')||/trash|deleted items/.test(`${path} ${name}`))return 'trash';if(use.includes('\\archive')||use.includes('\\all')||/archive|all mail/.test(`${path} ${name}`))return 'archive';if(use.includes('\\drafts')||/drafts/.test(`${path} ${name}`))return 'drafts';return 'custom';};
 const folderDescriptor=(account,providerId,name,role,provider=account.provider)=>({id:role==='custom'?`${provider}:${encodedId(providerId)}`:standardId(role),name:name||role,role,providerId,...(role==='custom'?{accountId:account.id}:{})});
 const uniqueFolders=(rows,account,provider)=>{const seen=new Set();return rows.map(x=>{if(!seen.has(x.id)){seen.add(x.id);return x;}const custom=folderDescriptor(account,x.providerId,x.name,'custom',provider);seen.add(custom.id);return custom;});};
 function imapClient(account,deps={}){const d=defaults(account);return (deps.imapClientFactory||((options)=>new ImapFlow(options)))({host:d.imap.host,port:d.imap.port,secure:d.imap.secure,auth:{user:account.email,pass:account.password},logger:false,connectionTimeout:10000,socketTimeout:15000,authTimeout:10000});}
@@ -40,7 +42,7 @@ export async function listRemoteFolders(state,account,deps={}){
    while(queue.length){const parentId=queue.shift();let childUrl=`/me/mailFolders/${encodeURIComponent(parentId)}/childFolders?$top=100&includeHiddenFolders=true`;while(childUrl){const children=await graphRequest(account,childUrl,{},{fetchImpl:deps.fetchImpl});for(const child of children.value||[]){if(visited.has(child.id))continue;visited.add(child.id);rows.push(folderDescriptor(account,child.id,child.displayName,'custom','graph'));queue.push(child.id);}childUrl=children['@odata.nextLink']||null;}}
    return uniqueFolders(rows,account,'graph');
   }
-  const c=imapClient(account,deps);await c.connect();try{return uniqueFolders((await c.list()).map(x=>folderDescriptor(account,x.path,x.name,imapRole(x),'imap')),account,'imap');}finally{await c.logout().catch(()=>{});}
+  const c=imapClient(account,deps);await c.connect();try{const boxes=await c.list(),sent=selectSentMailbox(account,boxes);return uniqueFolders(boxes.map(x=>folderDescriptor(account,x.path,x.name,x.path===sent?.path?'sent':imapRole(x)==='sent'?'custom':imapRole(x),'imap')),account,'imap');}finally{await c.logout().catch(()=>{});}
  }catch(error){throw new Error(`Could not list remote folders: ${error.message}`);}
 }
 async function folderRows(state,account,deps={}){return account.folders?.length?account.folders:await listRemoteFolders(state,account,deps);}
@@ -48,7 +50,7 @@ async function resolveFolder(state,account,folder,deps={}){if(folder&&typeof fol
 async function imapFetch(a,folder,query,limit=100,deps={}){
  const client=imapClient(a,deps);
  const out=[]; await client.connect();
- try { const folders=folder.providerId||folder.role==='inbox'?[]:await client.list(),sentBox=folders.find(x=>imapRole(x)==='sent')?.path,draftsBox=folders.find(x=>imapRole(x)==='drafts')?.path;const box=folder.providerId|| (folder.role==='sent'?(a.sentFolder||sentBox||'Sent'):folder.role==='drafts'?(draftsBox||'Drafts'):folder.role==='inbox'?'INBOX':folders.find(x=>imapRole(x)===folder.role)?.path);if(!box)throw new Error(`Remote ${folder.role} folder is unavailable`); const lock=await client.getMailboxLock(box); try {
+ try { const folders=folder.providerId||folder.role==='inbox'?[]:await client.list(),sentBox=selectSentMailbox(a,folders)?.path,draftsBox=folders.find(x=>imapRole(x)==='drafts')?.path;const box=(folder.role==='sent'?a.sentFolder:null)||folder.providerId|| (folder.role==='sent'?(sentBox||'Sent'):folder.role==='drafts'?(draftsBox||'Drafts'):folder.role==='inbox'?'INBOX':folders.find(x=>imapRole(x)===folder.role)?.path);if(!box)throw new Error(`Remote ${folder.role} folder is unavailable`); const lock=await client.getMailboxLock(box); try {
    const total=client.mailbox.exists||0;if(!total)return out;const start=Math.max(1,total-limit+1),uidValidity=String(client.mailbox.uidValidity||'');
    if(deps.metadataOnly){
     const cached=new Map((deps.cachedMessages||[]).filter(m=>m.accountId===a.id&&m.providerRef?.folder===box&&m.providerRef.uidValidity===uidValidity).map(m=>[m.providerRef.uid,m]));
@@ -150,7 +152,25 @@ export async function updateRemote(state,m,patch,deps={}){
 }
 const sendAttachments=items=>(items||[]).map(x=>({filename:x.filename||'attachment',content:Buffer.from(String(x.content||''),'base64'),...(x.contentType?{contentType:x.contentType}:{})}));
 const graphAttachment=x=>({'@odata.type':'#microsoft.graph.fileAttachment',name:x.filename,contentType:x.contentType||'application/octet-stream',contentBytes:x.content.toString('base64')});
+export async function saveSentCopy(state,account,packet,deps={}){
+ return saveImapSentCopy(account,packet,{...deps,clientFactory:()=>imapClient(account,deps)});
+}
 export async function sendMail(state,account,draft,deps={}){const source=draft.replyToMessageId?state.messages.find(m=>m.id===draft.replyToMessageId):null,replyId=source?.providerRef?.rfcMessageId||undefined,attachments=sendAttachments(draft.attachments);
  if(account.provider==='microsoft') {await refreshToken(account,state.settings,'microsoft',deps.fetchImpl||fetch);const message={subject:draft.subject,body:{contentType:draft.html?'HTML':'Text',content:draft.html||draft.text},toRecipients:String(draft.to).split(',').map(address=>({emailAddress:{address:address.trim()}})),...(draft.cc?{ccRecipients:String(draft.cc).split(',').map(x=>({emailAddress:{address:x.trim()}}))}:{}),...(draft.bcc?{bccRecipients:String(draft.bcc).split(',').map(x=>({emailAddress:{address:x.trim()}}))}:{}),...(attachments.length?{attachments:attachments.map(graphAttachment)}:{})};if(source?.providerRef?.type==='graph'){const reply=await graphRequest(account,`/me/messages/${source.providerRef.id}/createReply`,{method:'POST'},{fetchImpl:deps.fetchImpl}),{attachments:graphAttachments,...replyMessage}=message;await graphRequest(account,`/me/messages/${reply.id}`,{method:'PATCH',headers:{'content-type':'application/json'},body:JSON.stringify(replyMessage)},{fetchImpl:deps.fetchImpl});for(const attachment of graphAttachments||[])await graphRequest(account,`/me/messages/${reply.id}/attachments`,{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(attachment)},{fetchImpl:deps.fetchImpl});await graphRequest(account,`/me/messages/${reply.id}/send`,{method:'POST'},{fetchImpl:deps.fetchImpl});}else await graphRequest(account,'/me/sendMail',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({message,saveToSentItems:true})},{fetchImpl:deps.fetchImpl});return {messageId:null};}
  if(account.provider==='gmail') {await refreshToken(account,state.settings,'gmail',deps.fetchImpl||fetch);const raw=await composeGmailRaw({from:account.email,to:draft.to,cc:draft.cc||undefined,bcc:draft.bcc||undefined,subject:draft.subject,text:draft.text||undefined,html:draft.html||undefined,attachments,inReplyTo:replyId,references:source?.providerRef?.references?[source.providerRef.references,replyId].filter(Boolean).join(' '):replyId});const r=await (deps.fetchImpl||fetch)('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',{method:'POST',headers:{Authorization:`Bearer ${account.accessToken}`,'content-type':'application/json'},body:JSON.stringify({raw,...(source?.providerRef?.type==='gmail'&&source.providerRef.threadId?{threadId:source.providerRef.threadId}:{})}),signal:AbortSignal.timeout(15000)});if(!r.ok)throw new Error('Gmail send failed');return {messageId:(await r.json()).id||null};}
- const smtp=defaults(account).smtp,transport=(deps.smtpTransportFactory||nodemailer.createTransport)({host:smtp.host,port:smtp.port,secure:smtp.secure,auth:{user:account.email,pass:account.password},connectionTimeout:10000,socketTimeout:15000});return transport.sendMail({from:account.email,to:draft.to,cc:draft.cc||undefined,bcc:draft.bcc||undefined,subject:draft.subject,text:draft.text,html:draft.html||undefined,inReplyTo:replyId,references:replyId||undefined,attachments});}
+ const smtp=defaults(account).smtp,transport=(deps.smtpTransportFactory||nodemailer.createTransport)({host:smtp.host,port:smtp.port,secure:smtp.secure,auth:{user:account.email,pass:account.password},connectionTimeout:10000,socketTimeout:15000});
+ const mail={from:account.email,to:draft.to,cc:draft.cc||undefined,bcc:draft.bcc||undefined,subject:draft.subject,text:draft.text,html:draft.html||undefined,inReplyTo:replyId,references:[...(Array.isArray(source?.providerRef?.references)?source.providerRef.references:[source?.providerRef?.references]),replyId].filter(Boolean).join(' ')||undefined,attachments,messageId:`<${randomUUID()}@${account.email.split('@')[1]}>`,date:new Date()};
+ try{
+  const mime=new MailComposer(mail).compile();mime.keepBcc=true;const raw=await new Promise((resolve,reject)=>mime.build((e,b)=>e?reject(e):resolve(b)));
+  const packet={raw:raw.toString('base64'),messageId:mail.messageId,date:mail.date.toISOString()};
+  // Persist the exact MIME before SMTP, so an interrupted send keeps its identity.
+  await deps.onPrepared?.(packet);
+  const boundary=raw.indexOf('\r\n\r\n'),headers=raw.subarray(0,boundary).toString('latin1').split(/\r\n(?=[^ \t])/).filter(h=>!/^bcc:/i.test(h)).join('\r\n');
+  const wire=Buffer.concat([Buffer.from(headers,'latin1'),raw.subarray(boundary)]);
+  const info=await transport.sendMail({...mail,raw:wire,envelope:mime.getEnvelope()});
+  // From this point, only copy storage may be retried. SMTP must never be replayed.
+  let sentCopy=pendingSentCopy();
+  try{await deps.onAccepted?.(packet);sentCopy=await saveSentCopy(state,account,packet,deps);}catch{}
+  return {...info,messageId:packet.messageId,sentCopy,...(sentCopy.status==='pending'?{sentCopyPacket:packet}:{})};
+ }finally{transport.close?.();}
+}
