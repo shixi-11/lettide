@@ -109,3 +109,15 @@ test('service stop waits for background polling network work before closing the 
   releaseResolve();await stop;assert.equal(closed,true);assert.equal(store.state.accounts[0].lastSync,'finished-inbox');
  }finally{releaseResolve();if(!closed)await service.stop();await rm(dir,{recursive:true,force:true});}
 });
+
+test('small visible IMAP bodies prefetch without blocking the list, coalesce with opening, and skip large attachments',async()=>{
+ let release,started,calls=0;const gate=new Promise(r=>release=r),ready=new Promise(r=>started=r);
+ const f=await fixture(async()=>[],async(_s,m,p)=>Object.assign(m,p),async()=>[],async(_s,m,deps)=>{calls++;assert.equal(deps.priority,'background');started();await gate;m.text='Fictional prefetched body';m.bodyLoaded=true;});
+ try{
+  await f.store.mutate(s=>{Object.assign(s.messages[0],{bodyLoaded:false,size:1024,providerRef:{type:'imap'}});s.messages.push({...s.messages[0],id:'large',size:1024*1024});});
+  const list=await request(f,'/messages',undefined,'GET');assert.equal(list.status,200);await ready;
+  const opening=request(f,'/messages/m',undefined,'GET');
+  const draft=await request(f,'/drafts',{accountId:'a',to:'receiver@example.test',text:'Fictional draft'});assert.equal(draft.status,201);assert.equal(calls,1);
+  release();assert.equal((await (await opening).json()).text,'Fictional prefetched body');await f.server.closeIdleConnections?.();await new Promise(r=>setImmediate(r));assert.equal(calls,1);
+ }finally{release();await f.close();}
+});

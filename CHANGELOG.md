@@ -1,5 +1,21 @@
 # 更新记录 / Changelog
 
+## 0.3.9
+
+### 中文
+
+- 复用 IMAP 邮箱连接，减少打开邮件时反复登录的等待；当前列表中的少量小邮件会在后台准备正文，大邮件仍按需下载。
+- 已读、星标和移动操作在联网时不再占用共用保存队列，避免拖慢正文、草稿和翻译结果的保存。
+- 译文分段完成后逐步显示，无需等待整封翻译结束；保留原文、链接、取消和重试功能。离线全文翻译仍受设备性能与邮件长度影响。
+- 尚未下载正文的邮件会显示准备状态，避免误显示为没有正文。
+
+### English
+
+- Reuse IMAP connections to reduce repeated sign-in delays when opening messages. Prepare a few small messages from the visible list in the background; large messages remain on demand.
+- Keep network work for read status, stars and moves out of the shared save queue so it cannot hold up message bodies, drafts or translation results.
+- Show translated segments as they finish instead of waiting for the full email. Preserve original text, links, cancellation and retry. Full offline translation time still depends on the device and email length.
+- Show a preparation state for messages whose bodies have not been downloaded, instead of indicating that they have no body.
+
 ## 0.3.8
 
 ### English

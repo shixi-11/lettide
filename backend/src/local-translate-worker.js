@@ -176,7 +176,10 @@ async function translatePreservingStructure(text, source, target, onProgress) {
     if (!parts[i].translate || !parts[i].text.trim()) { output.push(parts[i++].text); continue; }
     const batch = [parts[i++].text];
     const separators = [];
-    while (batch.length < TRANSLATION_BATCH_SIZE) {
+    // Translate the first segment alone so users can see useful output as soon
+    // as it is ready; keep batching the remainder to limit total inference cost.
+    const batchLimit = completed === 0 ? 1 : TRANSLATION_BATCH_SIZE;
+    while (batch.length < batchLimit) {
       let j = i;
       let separator = '';
       while (j < parts.length && !parts[j].translate && /^\s*$/u.test(parts[j].text)) separator += parts[j++].text;
@@ -187,11 +190,11 @@ async function translatePreservingStructure(text, source, target, onProgress) {
     }
     const translated = await translatePieces(batch, source, target);
     completed += batch.length;
-    onProgress({ phase: 'running', completed, total });
     for (let j = 0; j < translated.length; j++) {
       output.push(translated[j]);
       if (j < separators.length) output.push(separators[j]);
     }
+    onProgress({ phase: 'running', completed, total, partialText: output.join('') });
   }
   return output.join('');
 }

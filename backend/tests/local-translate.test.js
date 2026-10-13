@@ -31,8 +31,8 @@ test('local translator starts download explicitly, reports progress, and gates t
   worker.emit('message', { type: 'translation-start', id: worker.messages.at(-1).id, total: 5 });
   assert.equal(worker.messages.at(-1).type, 'start-ack');
   assert.equal((await translator.status()).translation.phase, 'preparing');
-  worker.emit('message', { type: 'translation-progress', id: worker.messages.at(-1).id, value: { phase: 'running', completed: 1, total: 3 } });
-  assert.deepEqual((await translator.status()).translation, { requestId: 'fictional-request', phase: 'running', completed: 1, total: 3 });
+  worker.emit('message', { type: 'translation-progress', id: worker.messages.at(-1).id, value: { phase: 'running', completed: 1, total: 3, partialText: '第一段虚构译文。' } });
+  assert.deepEqual((await translator.status()).translation, { requestId: 'fictional-request', phase: 'running', completed: 1, total: 3, partialText: '第一段虚构译文。' });
   worker.emit('message', { type: 'result', id: worker.messages.at(-1).id, text: '你好' });
   assert.equal(await pending, '你好');
   assert.equal((await translator.status()).translation, null);

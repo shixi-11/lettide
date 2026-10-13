@@ -4,6 +4,7 @@ import {simpleParser} from 'mailparser';
 import MailComposer from 'nodemailer/lib/mail-composer';
 import {htmlToText as convertHtmlToText} from 'html-to-text';
 import {randomUUID} from 'node:crypto';
+import {ImapPool} from './imap-pool.js';
 import {saveImapSentCopy,pendingSentCopy,selectSentMailbox} from './sent-copy.js';
 
 const address=(a)=>({name:a?.name||'',address:a?.address||''});
@@ -25,6 +26,14 @@ const imapRole=box=>{const use=String(box.specialUse||'').toLowerCase(),path=Str
 const folderDescriptor=(account,providerId,name,role,provider=account.provider)=>({id:role==='custom'?`${provider}:${encodedId(providerId)}`:standardId(role),name:name||role,role,providerId,...(role==='custom'?{accountId:account.id}:{})});
 const uniqueFolders=(rows,account,provider)=>{const seen=new Set();return rows.map(x=>{if(!seen.has(x.id)){seen.add(x.id);return x;}const custom=folderDescriptor(account,x.providerId,x.name,'custom',provider);seen.add(custom.id);return custom;});};
 function imapClient(account,deps={}){const d=defaults(account);return (deps.imapClientFactory||((options)=>new ImapFlow(options)))({host:d.imap.host,port:d.imap.port,secure:d.imap.secure,auth:{user:account.email,pass:account.password},logger:false,connectionTimeout:10000,socketTimeout:15000,authTimeout:10000});}
+const sharedImapPool=new ImapPool();
+export const closeMailConnections=accountId=>sharedImapPool.close(accountId);
+async function pooledImapClient(account,deps={}){
+ if(deps.imapClientFactory&&!deps.imapPool)return imapClient(account,deps);
+ const d=defaults(account),pool=deps.imapPool||sharedImapPool;
+ const lease=await pool.acquire(account.id,[account.provider,account.email,account.password,d.imap],()=>imapClient(account,deps),deps.priority==='background'?0:10);
+ return new Proxy(lease.client,{get(target,key){if(key==='connect')return async()=>{};if(key==='logout')return lease.release;const value=Reflect.get(target,key,target);return typeof value==='function'?value.bind(target):value;}});
+}
 export async function listRemoteFolders(state,account,deps={}){
  try {
   if(account.provider==='gmail'){
@@ -42,21 +51,21 @@ export async function listRemoteFolders(state,account,deps={}){
    while(queue.length){const parentId=queue.shift();let childUrl=`/me/mailFolders/${encodeURIComponent(parentId)}/childFolders?$top=100&includeHiddenFolders=true`;while(childUrl){const children=await graphRequest(account,childUrl,{},{fetchImpl:deps.fetchImpl});for(const child of children.value||[]){if(visited.has(child.id))continue;visited.add(child.id);rows.push(folderDescriptor(account,child.id,child.displayName,'custom','graph'));queue.push(child.id);}childUrl=children['@odata.nextLink']||null;}}
    return uniqueFolders(rows,account,'graph');
   }
-  const c=imapClient(account,deps);await c.connect();try{const boxes=await c.list(),sent=selectSentMailbox(account,boxes);return uniqueFolders(boxes.map(x=>folderDescriptor(account,x.path,x.name,x.path===sent?.path?'sent':imapRole(x)==='sent'?'custom':imapRole(x),'imap')),account,'imap');}finally{await c.logout().catch(()=>{});}
+  const c=await pooledImapClient(account,deps);await c.connect();try{const boxes=await c.list(),sent=selectSentMailbox(account,boxes);return uniqueFolders(boxes.map(x=>folderDescriptor(account,x.path,x.name,x.path===sent?.path?'sent':imapRole(x)==='sent'?'custom':imapRole(x),'imap')),account,'imap');}finally{await c.logout().catch(()=>{});}
  }catch(error){throw new Error(`Could not list remote folders: ${error.message}`);}
 }
 async function folderRows(state,account,deps={}){return account.folders?.length?account.folders:await listRemoteFolders(state,account,deps);}
 async function resolveFolder(state,account,folder,deps={}){if(folder&&typeof folder==='object'&&folder.accountId&&folder.accountId!==account.id)throw new Error('Folder does not belong to this account');const raw=String(typeof folder==='object'?(folder.id||''):folder||'inbox'),role=roleAliases[raw.toLowerCase()];if(role){const cached=account.folders?.find(x=>x.role===role);return {id:role,role,folderKey:role,...(cached?.providerId?{providerId:cached.providerId}:{})};}let rows=account.folders||[],known=rows.find(x=>x.id===raw&&(!x.accountId||x.accountId===account.id));if(!known){rows=await listRemoteFolders(state,account,deps);known=rows.find(x=>x.id===raw&&(!x.accountId||x.accountId===account.id));}if(!known)throw new Error('Folder does not belong to this account');return {...known,folderKey:known.id};}
 async function imapFetch(a,folder,query,limit=100,deps={}){
- const client=imapClient(a,deps);
+ const client=await pooledImapClient(a,deps);
  const out=[]; await client.connect();
  try { const folders=folder.providerId||folder.role==='inbox'?[]:await client.list(),sentBox=selectSentMailbox(a,folders)?.path,draftsBox=folders.find(x=>imapRole(x)==='drafts')?.path;const box=(folder.role==='sent'?a.sentFolder:null)||folder.providerId|| (folder.role==='sent'?(sentBox||'Sent'):folder.role==='drafts'?(draftsBox||'Drafts'):folder.role==='inbox'?'INBOX':folders.find(x=>imapRole(x)===folder.role)?.path);if(!box)throw new Error(`Remote ${folder.role} folder is unavailable`); const lock=await client.getMailboxLock(box); try {
    const total=client.mailbox.exists||0;if(!total)return out;const start=Math.max(1,total-limit+1),uidValidity=String(client.mailbox.uidValidity||'');
    if(deps.metadataOnly){
     const cached=new Map((deps.cachedMessages||[]).filter(m=>m.accountId===a.id&&m.providerRef?.folder===box&&m.providerRef.uidValidity===uidValidity).map(m=>[m.providerRef.uid,m]));
-    for await(const msg of client.fetch(`${start}:${total}`,{uid:true,flags:true,envelope:true})){
+    for await(const msg of client.fetch(`${start}:${total}`,{uid:true,flags:true,envelope:true,size:true})){
      const old=cached.get(msg.uid),e=msg.envelope||{},id=`${a.id}:imap:${box}:${msg.uid}`;
-     out.push({...old,id,accountId:a.id,providerRef:{...old?.providerRef,type:'imap',folder:box,uid:msg.uid,uidValidity,rfcMessageId:old?.providerRef?.rfcMessageId||e.messageId||null},subject:old?.subject??e.subject??'',from:old?.from||address(e.from?.[0]),to:old?.to||(e.to||[]).map(address),date:old?.date||(e.date||new Date()).toISOString(),text:old?.text||'',attachments:old?.attachments||[],bodyLoaded:old?old.bodyLoaded!==false:false,unread:!msg.flags.has('\\Seen'),starred:msg.flags.has('\\Flagged')});
+     out.push({...old,id,accountId:a.id,providerRef:{...old?.providerRef,type:'imap',folder:box,uid:msg.uid,uidValidity,rfcMessageId:old?.providerRef?.rfcMessageId||e.messageId||null},subject:old?.subject??e.subject??'',from:old?.from||address(e.from?.[0]),to:old?.to||(e.to||[]).map(address),date:old?.date||(e.date||new Date()).toISOString(),size:msg.size||old?.size,text:old?.text||'',attachments:old?.attachments||[],bodyLoaded:old?old.bodyLoaded!==false:false,unread:!msg.flags.has('\\Seen'),starred:msg.flags.has('\\Flagged')});
     }return out;
    }
    for await (const msg of client.fetch(`${start}:${total}`,{uid:true,flags:true,envelope:true,source:true,bodyStructure:true})) {
@@ -71,7 +80,7 @@ export async function loadMessageBody(state,message,deps={}){
  const account=state.accounts.find(a=>a.id===message.accountId);if(!account)throw new Error('Account unavailable');
  if(message.providerRef?.type==='gmail'){const m=await googleRequest(account,state.settings,`/messages/${message.providerRef.id}?format=full`,{},deps);const content=await gmailContent(account,m,state.settings,deps);Object.assign(message,content);return message;}
  if(message.providerRef?.type!=='imap')return message;
- const client=imapClient(account,deps);await client.connect();try{const lock=await client.getMailboxLock(message.providerRef.folder);try{
+ const client=await pooledImapClient(account,deps);await client.connect();try{const lock=await client.getMailboxLock(message.providerRef.folder);try{
   if(String(client.mailbox.uidValidity||'')!==message.providerRef.uidValidity)throw new Error('Message UID validity changed');
   const row=await client.fetchOne(message.providerRef.uid,{source:true},{uid:true});if(!row?.source)throw new Error('Message no longer available');
   const p=await simpleParser(row.source);Object.assign(message,{subject:p.subject||message.subject,from:address(p.from?.value?.[0]),to:(p.to?.value||[]).map(address),...(p.replyTo?.value?.length?{replyTo:p.replyTo.value.map(address)}:{}),text:htmlBodyToText(p.text,typeof p.html==='string'?p.html:''),attachments:(p.attachments||[]).map((x,i)=>({id:`${message.id}:att:${i}`,filename:x.filename||'attachment',size:x.size,content:x.content.toString('base64')})),bodyLoaded:true});
@@ -124,7 +133,7 @@ export async function updateRemote(state,m,patch,deps={}){
    destination=target.providerId||rows.find(x=>x.role===target.role)?.providerId;
    if(!destination)throw new Error('Remote destination folder is unavailable');
   }
-  const c=imapClient(a,deps);await c.connect();
+  const c=await pooledImapClient(a,deps);await c.connect();
   try{const lock=await c.getMailboxLock(m.providerRef.folder);try{
    const currentValidity=String(c.mailbox.uidValidity||'');if(m.providerRef.uidValidity&&currentValidity!==m.providerRef.uidValidity)throw new Error('Message UID validity changed');
    if(patch.unread!==undefined)await (patch.unread?c.messageFlagsRemove(m.providerRef.uid,['\\Seen'],{uid:true}):c.messageFlagsAdd(m.providerRef.uid,['\\Seen'],{uid:true}));
