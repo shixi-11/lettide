@@ -98,3 +98,14 @@ test('cancel API addresses a translation request without invoking a translator o
   response=await fetch(f.url+'/api/translations/local/cancel',{method:'POST',headers,body:'{}'});assert.equal(response.status,400);assert.equal(f.store.state.messages.length,0);
  }finally{await f.close()}
 });
+
+test('version 2 mixed-language caches are invalidated and invalid new translations are never stored',async()=>{
+ const {createHash}=await import('node:crypto');let calls=0,invalid=false;const source='Hello, please review the attached fictional report. Thank you.';
+ const f=await fixture({localTranslator:{status:async()=>({state:'ready'}),translate:async()=>{calls++;return invalid?'您好 '+('مرحبا '.repeat(9)):'您好，请查看随附的虚构报告。谢谢。';}}});
+ try{const headers={authorization:`Bearer ${f.store.state.token}`,'content-type':'application/json'};
+  await f.store.mutate(s=>{s.messages=[{id:'old-message',text:source}];s.jobs=[{id:'old-v2',messageId:'old-message',text:source,sourceHash:createHash('sha256').update(source).digest('hex'),sourceLanguage:'eng_Latn',targetLanguage:'简体中文',provider:'local',cacheVersion:2,status:'completed',translation:'您好 '+('مرحبا '.repeat(9))}];});
+  const request=sourceLanguage=>fetch(f.url+'/api/translations',{method:'POST',headers,body:JSON.stringify({messageId:'old-message',targetLanguage:'简体中文',sourceLanguage,mode:'local'})});
+  let response=await request('English');assert.equal(response.status,200);assert.equal(calls,1);assert.equal((await response.json()).translation,'您好，请查看随附的虚构报告。谢谢。');assert.equal(f.store.state.jobs.at(-1).cacheVersion,3);
+  invalid=true;const count=f.store.state.jobs.length;response=await request('Français');assert.equal(response.status,503);assert.match((await response.json()).error,/unexpected language/);assert.equal(f.store.state.jobs.length,count);
+ }finally{await f.close();}
+});

@@ -11,6 +11,7 @@ import {LocalTranslator} from './local-translate.js';
 import {registerAccountManagement} from './account-management.js';
 import {registerSendRoutes} from './send-routes.js';
 import {createMessageMutator} from './message-mutations.js';
+import {assertTranslationQuality} from './translation-text.js';
 import {normalizeLanguage} from './translation-language.js';
 
 const defaultStaticRoot=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../web/dist');
@@ -143,11 +144,11 @@ app.post('/api/translations',async(req,res)=>{
  if(mode==='local'){
   if(b.sourceLanguage&&!normalizeLanguage(b.sourceLanguage))return res.status(400).json({error:'Unsupported source language'});
   const sourceLanguage=normalizeLanguage(b.sourceLanguage)||'';
-  const hash=createHash('sha256').update(text).digest('hex'),key='local:v2:'+(b.messageId||'text')+':'+b.targetLanguage+':'+sourceLanguage+':'+hash;
-  const cached=store.state.jobs.find(j=>j.sourceHash===hash&&j.messageId===(b.messageId||null)&&j.targetLanguage===b.targetLanguage&&j.status==='completed'&&j.provider==='local'&&j.cacheVersion===2&&(j.sourceLanguage||'')===sourceLanguage);
+  const hash=createHash('sha256').update(text).digest('hex'),key='local:v3:'+(b.messageId||'text')+':'+b.targetLanguage+':'+sourceLanguage+':'+hash;
+  const cached=store.state.jobs.find(j=>j.sourceHash===hash&&j.messageId===(b.messageId||null)&&j.targetLanguage===b.targetLanguage&&j.status==='completed'&&j.provider==='local'&&j.cacheVersion===3&&(j.sourceLanguage||'')===sourceLanguage);
   if(cached)return res.json({id:cached.id,status:'completed',translation:cached.translation});
   if((await local().status()).state!=='ready')return res.status(409).json({code:'MODEL_NOT_READY',error:'Offline translation model is not ready'});
-  let work=onlineInFlight.get(key);if(!work){const requestId=typeof b.requestId==='string'&&b.requestId.length<=128?b.requestId:null;work=(async()=>{const translation=await local().translate(text,b.targetLanguage,{requestId,sourceLanguage:sourceLanguage||undefined});const job={id:newId(),messageId:b.messageId||null,text,targetLanguage:b.targetLanguage,sourceHash:hash,provider:'local',cacheVersion:2,sourceLanguage,status:'completed',translation,createdAt:new Date().toISOString(),completedAt:new Date().toISOString()};await store.mutate(s=>{if(!job.messageId||s.messages.some(m=>m.id===job.messageId))s.jobs.push(job);});return {id:job.id,status:'completed',translation};})();onlineInFlight.set(key,work);work.finally(()=>onlineInFlight.delete(key)).catch(()=>{});}
+  let work=onlineInFlight.get(key);if(!work){const requestId=typeof b.requestId==='string'&&b.requestId.length<=128?b.requestId:null;work=(async()=>{const translation=await local().translate(text,b.targetLanguage,{requestId,sourceLanguage:sourceLanguage||undefined});assertTranslationQuality(text,translation,normalizeLanguage(b.targetLanguage));const job={id:newId(),messageId:b.messageId||null,text,targetLanguage:b.targetLanguage,sourceHash:hash,provider:'local',cacheVersion:3,sourceLanguage,status:'completed',translation,createdAt:new Date().toISOString(),completedAt:new Date().toISOString()};await store.mutate(s=>{if(!job.messageId||s.messages.some(m=>m.id===job.messageId))s.jobs.push(job);});return {id:job.id,status:'completed',translation};})();onlineInFlight.set(key,work);work.finally(()=>onlineInFlight.delete(key)).catch(()=>{});}
   try{return res.json(await work)}catch(error){return res.status(503).json({error:error?.message||'Local translation failed; please try again'})}
  }
  if(mode==='google'){

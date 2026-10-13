@@ -4,12 +4,12 @@
 
 ## 下载安装
 
-当前预览版本 **0.3.9**。[下载页](https://github.com/shixi-11/lettide/releases/tag/v0.3.9) · [更新记录](CHANGELOG.md) · [English](README.en.md)
+当前预览版本 **0.3.10**。[下载页](https://github.com/shixi-11/lettide/releases/tag/v0.3.10) · [更新记录](CHANGELOG.md) · [English](README.en.md)
 
 | 系统 | 中文版「叠信」 | English “Lettide” |
 | --- | --- | --- |
-| Windows 10 / 11，64 位 | [下载安装程序](https://github.com/shixi-11/lettide/releases/download/v0.3.9/Lettide-0.3.9-win-x64-zh-CN.exe) | [Download installer](https://github.com/shixi-11/lettide/releases/download/v0.3.9/Lettide-0.3.9-win-x64-en.exe) |
-| macOS 12+，Apple 芯片与 Intel 通用 | [下载 DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.9/Lettide-0.3.9-mac-universal-zh-CN.dmg) | [Download DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.9/Lettide-0.3.9-mac-universal-en.dmg) |
+| Windows 10 / 11，64 位 | [下载安装程序](https://github.com/shixi-11/lettide/releases/download/v0.3.10/Lettide-0.3.10-win-x64-zh-CN.exe) | [Download installer](https://github.com/shixi-11/lettide/releases/download/v0.3.10/Lettide-0.3.10-win-x64-en.exe) |
+| macOS 12+，Apple 芯片与 Intel 通用 | [下载 DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.10/Lettide-0.3.10-mac-universal-zh-CN.dmg) | [Download DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.10/Lettide-0.3.10-mac-universal-en.dmg) |
 
 Windows 双击安装；macOS 打开 DMG 后把应用拖入「应用程序」。内置运行环境，无需安装 Node.js。中文版与英文版功能相同，可在设置中切换中文、English 或跟随系统。
 

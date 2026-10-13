@@ -6,7 +6,7 @@ import { join, dirname } from 'node:path';
 import { once } from 'node:events';
 import { finished } from 'node:stream/promises';
 import { detectSourceLanguage, normalizeLanguage } from './translation-language.js';
-import { assertTranslationChanged, tokenSegments } from './translation-text.js';
+import { assertTranslationChanged, assertTranslationQuality, tokenSegments } from './translation-text.js';
 
 const MODEL = 'Xenova/nllb-200-distilled-600M';
 const REVISION = '261c31d1a5732c67cdd16d80e8d6088507c7ccea';
@@ -128,7 +128,6 @@ async function doDownload() {
 
 const MAX_SOURCE_TOKENS = 800;
 const MAX_OUTPUT_TOKENS = 512;
-const TRANSLATION_BATCH_SIZE = 4;
 async function tokenCount(text) {
   const encoded = await pipe.tokenizer(text, { add_special_tokens: true });
   const ids = encoded.input_ids;
@@ -142,6 +141,7 @@ async function translatePiece(text, source, target, depth = 0) {
   const result = await pipe(body, { src_lang: source, tgt_lang: target, max_new_tokens: MAX_OUTPUT_TOKENS });
   const translated = result?.[0]?.translation_text;
   if (typeof translated !== 'string' || !translated.trim()) throw new Error('Local model returned no translation');
+  assertTranslationQuality(body, translated, target);
   if (await tokenCount(translated) < MAX_OUTPUT_TOKENS - 1) return leading + translated.trim() + trailing;
   if (depth >= 3) throw new Error('Translation output remains too long after splitting; shorten this text and retry');
   const smaller = await tokenSegments(body, tokenCount, { tokenLimit: Math.max(100, Math.floor(MAX_SOURCE_TOKENS / 2 ** (depth + 1))) });
@@ -149,51 +149,30 @@ async function translatePiece(text, source, target, depth = 0) {
   for (const part of smaller) output += part.translate ? await translatePiece(part.text, source, target, depth + 1) : part.text;
   return leading + output + trailing;
 }
-async function translatePieces(texts, source, target) {
-  if (texts.length === 1) return [await translatePiece(texts[0], source, target)];
-  const bounds = texts.map(text => ({ leading: text.match(/^\s*/u)?.[0] || '', trailing: text.match(/\s*$/u)?.[0] || '' }));
-  const bodies = texts.map((text, i) => text.slice(bounds[i].leading.length, text.length - bounds[i].trailing.length));
-  const results = await pipe(bodies, { src_lang: source, tgt_lang: target, max_new_tokens: MAX_OUTPUT_TOKENS });
-  if (!Array.isArray(results) || results.length !== texts.length) throw new Error('Local model returned an incomplete translation batch');
-  const output = [];
-  for (let i = 0; i < results.length; i++) {
-    const translated = results[i]?.translation_text;
-    if (typeof translated !== 'string' || !translated.trim() || await tokenCount(translated) >= MAX_OUTPUT_TOKENS - 1) {
-      output.push(await translatePiece(texts[i], source, target));
-    } else {
-      output.push(bounds[i].leading + translated.trim() + bounds[i].trailing);
-    }
-  }
-  return output;
-}
 async function translatePreservingStructure(text, source, target, onProgress) {
   const parts = await tokenSegments(text, tokenCount, { tokenLimit: MAX_SOURCE_TOKENS, onProgress });
   const total = parts.filter(part => part.translate && part.text.trim()).length;
   let completed = 0;
-  onProgress({ phase: 'running', completed, total });
   const output = [];
-  for (let i = 0; i < parts.length;) {
-    if (!parts[i].translate || !parts[i].text.trim()) { output.push(parts[i++].text); continue; }
-    const batch = [parts[i++].text];
-    const separators = [];
-    // Translate the first segment alone so users can see useful output as soon
-    // as it is ready; keep batching the remainder to limit total inference cost.
-    const batchLimit = completed === 0 ? 1 : TRANSLATION_BATCH_SIZE;
-    while (batch.length < batchLimit) {
-      let j = i;
-      let separator = '';
-      while (j < parts.length && !parts[j].translate && /^\s*$/u.test(parts[j].text)) separator += parts[j++].text;
-      if (!separator || j >= parts.length || !parts[j].translate) break;
-      separators.push(separator);
-      batch.push(parts[j].text);
-      i = j + 1;
+  onProgress({ phase: 'running', completed, total });
+  let preserveSignatureName = false;
+  for (const part of parts) {
+    if (!part.translate || !part.text.trim()) { output.push(part.text); continue; }
+    // Transformers.js 3.8.1 continues generating an already-ended short row
+    // until the whole batch ends. Never batch mixed-length translation rows.
+    const closing = source === 'eng_Latn' && ['zho_Hans', 'zho_Hant'].includes(target)
+      && /^(?:Best,|Best regards,?|Kind regards,?|Regards,|Sincerely,|Yours sincerely,?)$/iu.test(part.text.trim());
+    if (closing) {
+      output.push(part.text.replace(part.text.trim(), '祝好，'));
+      preserveSignatureName = true;
+    } else if (preserveSignatureName && /^[\p{L} .'-]{1,60}$/u.test(part.text.trim())) {
+      output.push(part.text);
+      preserveSignatureName = false;
+    } else {
+      preserveSignatureName = false;
+      output.push(await translatePiece(part.text, source, target));
     }
-    const translated = await translatePieces(batch, source, target);
-    completed += batch.length;
-    for (let j = 0; j < translated.length; j++) {
-      output.push(translated[j]);
-      if (j < separators.length) output.push(separators[j]);
-    }
+    completed++;
     onProgress({ phase: 'running', completed, total, partialText: output.join('') });
   }
   return output.join('');
@@ -209,6 +188,7 @@ async function translate(text, targetLanguage, sourceLanguage, onProgress = () =
   onProgress({ phase: 'preparing', completed: 0, total: text.length });
   const result = await translatePreservingStructure(text, source, target, onProgress);
   assertTranslationChanged(text, result, source, target);
+  assertTranslationQuality(text, result, target);
   return result;
 }
 

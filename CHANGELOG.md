@@ -1,5 +1,23 @@
 # 更新记录 / Changelog
 
+## 0.3.10
+
+### 中文
+
+- 修复长短段落混合批量翻译时，已结束的短段继续生成、混入其他语言并反复重复的问题。每段独立结束，保留逐段显示和原文结构。
+- 按完整句子翻译，保留网址、邮箱地址、分隔线和简短署名，减少多句段落漏译与装饰文字误译。
+- 明显错语种、异常重复和过度膨胀的结果不会被显示或缓存为成功译文；旧版翻译缓存不再复用。
+- 保留 0.3.9 的邮箱连接复用、正文预取与保存队列优化。
+- 安装包直接上传 GitHub Release，避免临时构建附件配额耗尽阻断下载。
+
+### English
+
+- Fix mixed-length translation batches continuing to generate after a short segment has ended, producing repeated text in unrelated languages. End each segment independently while preserving progressive display and source structure.
+- Translate complete sentences separately, retaining URLs, email addresses, separators and short signatures to reduce skipped sentences and mistranslated decoration.
+- Reject visibly incorrect scripts, abnormal repetition and excessive expansion before showing or caching a successful translation. Invalidate older translation caches.
+- Retain the IMAP connection reuse, body prefetching and save-queue improvements from 0.3.9.
+- Upload installers directly to GitHub Releases so exhausted temporary build-artifact storage cannot block downloads.
+
 ## 0.3.9
 
 ### 中文

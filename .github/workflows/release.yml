@@ -83,14 +83,6 @@ jobs:
           node scripts/Build-Desktop.mjs $args
       - name: Verify packaged native translation dependencies
         run: node scripts/Verify-PackagedRuntime.mjs
-      - uses: actions/upload-artifact@v4
-        with:
-          name: installer-${{ runner.os }}-${{ matrix.language }}
-          path: |
-            output/desktop/*.exe
-            output/desktop/*.dmg
-          if-no-files-found: error
-          retention-days: 14
       - name: Publish release installers
         env:
           GH_TOKEN: ${{ github.token }}
