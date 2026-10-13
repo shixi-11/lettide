@@ -1,3 +1,4 @@
+import {cloneData,sameData} from './data-clone.js';
 import express from 'express';
 import {randomBytes,randomUUID,createHash} from 'node:crypto';
 import {promises as fs} from 'node:fs';
@@ -21,17 +22,17 @@ export async function createApp({store=new Store(),staticRoot=defaultStaticRoot,
  await store.open(); const app=express(), pendingOAuth=new Map();app.locals.store=store;app.locals.mailSyncer=mailSyncer;app.locals.folderLister=folderLister;
  const syncTasks=new Map();
  const updateMessage=createMessageMutator(store,messageUpdater);
- const same=(a,b)=>JSON.stringify(a)===JSON.stringify(b);
+ const same=sameData;
  async function refreshFolders(accountId){
   const account=store.state.accounts.find(a=>a.id===accountId);if(!account)return false;
-  const beforeAccount=structuredClone(account),snapshot={settings:structuredClone(store.state.settings),accounts:[structuredClone(account)],messages:[]};
+  const beforeAccount=cloneData(account),snapshot={settings:cloneData(store.state.settings),accounts:[cloneData(account)],messages:[]};
   const found=await folderLister(snapshot,snapshot.accounts[0]);
-  return store.mutate(state=>{const current=state.accounts.find(a=>a.id===accountId);if(!current)return false;const afterAccount=snapshot.accounts[0];for(const key of Object.keys({...beforeAccount,...afterAccount}))if(!same(beforeAccount[key],afterAccount[key])&&same(current[key],beforeAccount[key])){if(Object.hasOwn(afterAccount,key))current[key]=structuredClone(afterAccount[key]);else delete current[key];}current.folders=found.map(f=>({...f,accountId}));current.foldersSyncedAt=new Date().toISOString();return true;});
+  return store.mutate(state=>{const current=state.accounts.find(a=>a.id===accountId);if(!current)return false;const afterAccount=snapshot.accounts[0];for(const key of Object.keys({...beforeAccount,...afterAccount}))if(!same(beforeAccount[key],afterAccount[key])&&same(current[key],beforeAccount[key])){if(Object.hasOwn(afterAccount,key))current[key]=cloneData(afterAccount[key]);else delete current[key];}current.folders=found.map(f=>({...f,accountId}));current.foldersSyncedAt=new Date().toISOString();return true;});
  }
  async function syncFolder(accountId,folder){
   const account=store.state.accounts.find(a=>a.id===accountId);if(!account)return;
-  const beforeAccount=structuredClone(account),baseline=store.state.messages.filter(m=>m.accountId===accountId).map(m=>structuredClone(m));
-  const snapshot={settings:structuredClone(store.state.settings),accounts:[structuredClone(account)],messages:baseline.map(m=>structuredClone(m))};
+  const beforeAccount=cloneData(account),baseline=store.state.messages.filter(m=>m.accountId===accountId).map(m=>cloneData(m));
+  const snapshot={settings:cloneData(store.state.settings),accounts:[cloneData(account)],messages:baseline.map(m=>cloneData(m))};
   const custom=!['inbox','sent','drafts','archive','junk','trash'].includes(folder),target=custom?{id:folder,accountId}:folder;
   await mailSyncer(snapshot,snapshot.accounts[0],target,'',60,{metadataOnly:true,priority:'background'});
   const synced=snapshot.messages.filter(m=>m.accountId===accountId),baseById=new Map(baseline.map(m=>[m.id,m])),syncedById=new Map(synced.map(m=>[m.id,m]));
@@ -42,8 +43,8 @@ export async function createApp({store=new Store(),staticRoot=defaultStaticRoot,
    for(const id of allIds){
     const base=baseById.get(id),remote=syncedById.get(id),current=currentById.get(id);
     if(!base){
-     if(remote&&!current)state.messages.push(structuredClone(remote));
-     else if(remote&&current){const merged=structuredClone(current),membership=new Set([...(current.folderIds||current.folders||[current.folder||'inbox']),...(remote.folderIds||remote.folders||[remote.folder||'inbox'])]);merged.folderIds=[...membership];merged.folders=merged.folderIds;const index=state.messages.findIndex(m=>m.id===id);if(index>=0)state.messages[index]=merged;}
+     if(remote&&!current)state.messages.push(cloneData(remote));
+     else if(remote&&current){const merged=cloneData(current),membership=new Set([...(current.folderIds||current.folders||[current.folder||'inbox']),...(remote.folderIds||remote.folders||[remote.folder||'inbox'])]);merged.folderIds=[...membership];merged.folders=merged.folderIds;const index=state.messages.findIndex(m=>m.id===id);if(index>=0)state.messages[index]=merged;}
      continue;
     }
     if(!current)continue;
@@ -53,8 +54,8 @@ export async function createApp({store=new Store(),staticRoot=defaultStaticRoot,
      continue;
     }
     if(!same(base.folder,current.folder))continue;
-    const merged=structuredClone(remote);
-    for(const key of new Set([...Object.keys(base),...Object.keys(current)]))if(!['folderIds','folders'].includes(key)&&!same(base[key],current[key])){if(Object.hasOwn(current,key))merged[key]=structuredClone(current[key]);else delete merged[key];}
+    const merged=cloneData(remote);
+    for(const key of new Set([...Object.keys(base),...Object.keys(current)]))if(!['folderIds','folders'].includes(key)&&!same(base[key],current[key])){if(Object.hasOwn(current,key))merged[key]=cloneData(current[key]);else delete merged[key];}
     const baseMembership=new Set(base.folderIds||base.folders||[base.folder||'inbox']),currentMembership=new Set(current.folderIds||current.folders||[current.folder||'inbox']),syncedMembership=new Set(remote.folderIds||remote.folders||[remote.folder||'inbox']),membership=new Set(baseMembership);
     for(const id of baseMembership)if(!currentMembership.has(id))membership.delete(id);
     for(const id of currentMembership)if(!baseMembership.has(id))membership.add(id);
@@ -64,7 +65,7 @@ export async function createApp({store=new Store(),staticRoot=defaultStaticRoot,
     const index=state.messages.findIndex(m=>m.id===id);if(index>=0)state.messages[index]=merged;
    }
    const baseFields=beforeAccount,afterAccount=snapshot.accounts[0];
-   for(const key of Object.keys({...baseFields,...afterAccount}))if(!same(baseFields[key],afterAccount[key])&&same(liveAccount[key],baseFields[key])){if(Object.hasOwn(afterAccount,key))liveAccount[key]=structuredClone(afterAccount[key]);else delete liveAccount[key];}
+   for(const key of Object.keys({...baseFields,...afterAccount}))if(!same(baseFields[key],afterAccount[key])&&same(liveAccount[key],baseFields[key])){if(Object.hasOwn(afterAccount,key))liveAccount[key]=cloneData(afterAccount[key]);else delete liveAccount[key];}
   });
  }
  app.locals.refreshFolders=refreshFolders;
@@ -114,7 +115,7 @@ app.get('/api/oauth/callback',async(req,res)=>{const p=pendingOAuth.get(req.quer
 app.get('/api/messages',(req,res)=>{const {accountId,folder='inbox',query='',unread,limit='100'}=req.query;if(!['inbox','sent','drafts','archive','junk','trash'].includes(folder)&&!store.state.accounts.some(a=>(!accountId||a.id===accountId)&&(a.folders||[]).some(f=>f.id===folder)))return res.status(400).json({error:'Invalid folder'});let rows=store.state.messages.filter(m=>(!accountId||m.accountId===accountId)&&(m.folderIds||[m.folder||'inbox']).includes(folder));if(query)rows=rows.filter(m=>`${m.subject} ${m.text} ${m.from?.address}`.toLowerCase().includes(String(query).toLowerCase()));if(unread!==undefined)rows=rows.filter(m=>m.unread===(unread==='true'));rows.sort((a,b)=>Date.parse(b.date)-Date.parse(a.date));res.json({items:rows.slice(0,Math.min(200,Math.max(1,+limit||100))).map(publicMessage),total:rows.length});scheduleBodies(rows.slice(0,8));});
 const bodyLoads=new Map(),bodyPrefetch=new Map(),bodyRetryAt=new Map();
  function scheduleBodies(rows){const accounts=new Set(rows.map(m=>m.accountId));for(const accountId of accounts){if(bodyPrefetch.has(accountId))continue;const candidates=rows.filter(m=>m.accountId===accountId&&m.bodyLoaded===false&&m.providerRef?.type==='imap'&&m.size>0&&m.size<=256*1024&&!bodyLoads.has(m.id)&&Date.now()>=(bodyRetryAt.get(m.id)||0)).slice(0,3);if(!candidates.length)continue;const work=(async()=>{for(const m of candidates)try{await ensureBody(m.id,{priority:'background'});bodyRetryAt.delete(m.id);}catch{bodyRetryAt.set(m.id,Date.now()+30000);}})();bodyPrefetch.set(accountId,work);work.finally(()=>bodyPrefetch.delete(accountId)).catch(()=>{});}}
- async function ensureBody(id,deps={}){const current=store.state.messages.find(x=>x.id===id);if(!current||current.bodyLoaded!==false)return current;let work=bodyLoads.get(id);if(!work){const baseMessage=structuredClone(current),account=store.state.accounts.find(a=>a.id===current.accountId);if(!account)return null;const baseAccount=structuredClone(account),snapshot={settings:structuredClone(store.state.settings),accounts:[structuredClone(account)],messages:[baseMessage]};work=(async()=>{await messageLoader(snapshot,snapshot.messages[0],deps);const loaded=snapshot.messages[0];return store.mutate(state=>{if(!state.accounts.some(a=>a.id===baseMessage.accountId))return null;const message=state.messages.find(x=>x.id===id);if(!message||message.bodyLoaded!==false)return message||null;for(const key of ['text','attachments','bodyLoaded'])if(Object.hasOwn(loaded,key))message[key]=structuredClone(loaded[key]);const liveAccount=state.accounts.find(a=>a.id===baseMessage.accountId),loadedAccount=snapshot.accounts[0];for(const key of Object.keys({...baseAccount,...loadedAccount}))if(!same(baseAccount[key],loadedAccount[key])&&same(liveAccount[key],baseAccount[key])){if(Object.hasOwn(loadedAccount,key))liveAccount[key]=structuredClone(loadedAccount[key]);else delete liveAccount[key];}return message;});})();bodyLoads.set(id,work);work.finally(()=>bodyLoads.delete(id)).catch(()=>{});}return work;}
+ async function ensureBody(id,deps={}){const current=store.state.messages.find(x=>x.id===id);if(!current||current.bodyLoaded!==false)return current;let work=bodyLoads.get(id);if(!work){const baseMessage=cloneData(current),account=store.state.accounts.find(a=>a.id===current.accountId);if(!account)return null;const baseAccount=cloneData(account),snapshot={settings:cloneData(store.state.settings),accounts:[cloneData(account)],messages:[baseMessage]};work=(async()=>{await messageLoader(snapshot,snapshot.messages[0],deps);const loaded=snapshot.messages[0];return store.mutate(state=>{if(!state.accounts.some(a=>a.id===baseMessage.accountId))return null;const message=state.messages.find(x=>x.id===id);if(!message||message.bodyLoaded!==false)return message||null;for(const key of ['text','attachments','bodyLoaded'])if(Object.hasOwn(loaded,key))message[key]=cloneData(loaded[key]);const liveAccount=state.accounts.find(a=>a.id===baseMessage.accountId),loadedAccount=snapshot.accounts[0];for(const key of Object.keys({...baseAccount,...loadedAccount}))if(!same(baseAccount[key],loadedAccount[key])&&same(liveAccount[key],baseAccount[key])){if(Object.hasOwn(loadedAccount,key))liveAccount[key]=cloneData(loadedAccount[key]);else delete liveAccount[key];}return message;});})();bodyLoads.set(id,work);work.finally(()=>bodyLoads.delete(id)).catch(()=>{});}return work;}
  app.locals.waitForBackgroundTasks=async()=>{while(syncTasks.size||bodyLoads.size||bodyPrefetch.size)await Promise.allSettled([...syncTasks.values(),...bodyLoads.values(),...bodyPrefetch.values()]);await updateMessage.wait();};
  app.get('/api/messages/:id',async(req,res)=>{try{const m=await ensureBody(req.params.id);m?res.json(publicMessage(m)):res.sendStatus(404)}catch{res.status(502).json({error:'Could not load email content. Please retry.'})}});
 app.post('/api/sync',async(req,res)=>{

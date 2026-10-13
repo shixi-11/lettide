@@ -30,17 +30,17 @@ test('network sync work releases the store queue and merges concurrent membershi
  },async(_state,message,patch)=>{Object.assign(message,patch);if(patch.folder){message.folder=patch.folder;message.folderIds=[patch.folder];message.folders=message.folderIds;}});
  try{
   const inbox=request(f,'/sync',{accountId:'a',folder:'inbox'});await started;
-  let timedOut=false;const quick=Promise.all([
+  const quick=Promise.all([
    request(f,'/drafts',{accountId:'a',to:'x@example.test',subject:'draft',text:'fictional'}),
    request(f,'/translations',{text:'fictional text',targetLanguage:'English',mode:'assistant'}),
    request(f,'/sync',{accountId:'a',folder:'custom'})
   ]).then(rows=>rows.map(x=>x.status));
-  const statuses=await Promise.race([quick,delay(500).then(()=>{timedOut=true;return null;})]);
+  let deadline;const statuses=await Promise.race([quick,new Promise(resolve=>{deadline=setTimeout(()=>resolve(null),5000);})]).finally(()=>clearTimeout(deadline));
   await request(f,'/messages/m',{unread:true},'PATCH');
   assert.ok(f.store.state.messages[0].folderIds.includes('custom'));
   await request(f,'/messages/m',{folder:'trash'},'PATCH');
   releaseResolve();await inbox;
-  assert.equal(timedOut,false,'draft, translation, and another folder should finish while inbox network work is pending');
+  assert.notEqual(statuses,null,'draft, translation, and another folder should finish while inbox network work is pending');
   assert.deepEqual(statuses,[201,202,200]);
   const message=f.store.state.messages.find(x=>x.id==='m');assert.equal(message.unread,true);assert.equal(message.folder,'trash');assert.deepEqual(message.folderIds,['trash']);
   assert.equal(f.store.state.drafts.length,1);assert.equal(f.store.state.jobs.length,1);

@@ -1,5 +1,21 @@
 # 更新记录 / Changelog
 
+## 0.3.11
+
+### 中文
+
+- 大邮箱同步、正文保存和状态操作不再反复复制未变化的附件字符串；只复制可修改的数据容器，保留事务失败回滚与全部附件。
+- 比较同步状态时避免把未变化的大附件重复序列化，减少大缓存的内存与等待开销。
+- 包含 0.3.10 的本地翻译修复、新缓存与错语种检查，以及 0.3.9 的连接复用和正文预取。
+- 修正构建检查中已结束计时器误报同步阻塞的问题。
+
+### English
+
+- Avoid repeatedly copying unchanged attachment strings during large-mailbox sync, body saves and status updates. Copy mutable containers while preserving transaction rollback and every attachment.
+- Compare sync state without serializing unchanged large attachments, reducing memory and waiting overhead for large caches.
+- Include the offline translation fixes, refreshed cache and script checks from 0.3.10, plus connection reuse and body prefetching from 0.3.9.
+- Fix a build check whose expired timer could incorrectly report a blocked sync after the operation had already finished.
+
 ## 0.3.10
 
 ### 中文

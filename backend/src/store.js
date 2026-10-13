@@ -1,3 +1,4 @@
+import {cloneData} from './data-clone.js';
 import {promises as fs} from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
@@ -43,7 +44,7 @@ export class Store {
   async encrypt(payload){if(this.codec)return this.codec.protect(payload);if(process.platform==='darwin')return macosCrypto.protect(payload);if(process.platform!=='win32')throw new Error('Protected storage is unavailable on this platform');return this.windowsCrypto.protect(payload);}
   async persist(state){if(this.readOnly)throw new Error('Read-only store');const encrypted=await this.encrypt(Buffer.from(JSON.stringify(state))),tmp=`${this.file}.${process.pid}.${randomUUID()}.tmp`,backup=`${this.file}.${process.pid}.${randomUUID()}.bak`;const h=await fs.open(tmp,'wx',0o600);try{await h.writeFile(encrypted);await h.sync();}finally{await h.close();}try{try{await fs.rename(this.file,backup);await fs.rename(tmp,this.file);await fs.rm(backup,{force:true});}catch(e){try{await fs.access(backup);await fs.rename(backup,this.file);}catch{}throw e;}}catch(e){await fs.rm(tmp,{force:true});throw e;}}
   async save(){await this.persist(this.state);}
-  mutate(fn){const operation=this.queue.catch(()=>{}).then(async()=>{if(this.readOnly)throw new Error('Read-only store');const next=structuredClone(this.state),out=await fn(next);await this.persist(next);this.state=next;return out;});this.queue=operation.catch(()=>{});return operation;}
+  mutate(fn){const operation=this.queue.catch(()=>{}).then(async()=>{if(this.readOnly)throw new Error('Read-only store');const next=cloneData(this.state),out=await fn(next);await this.persist(next);this.state=next;return out;});this.queue=operation.catch(()=>{});return operation;}
   async close(){this.windowsCrypto.close();if(this.lockHandle){try{await this.lockHandle.close();}catch{}this.lockHandle=null;try{await fs.rm(this.lockPath,{force:true});}catch{}}}
 }
 export const newId=()=>randomUUID();
