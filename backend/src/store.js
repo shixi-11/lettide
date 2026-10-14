@@ -18,14 +18,37 @@ function dpapi(mode, payload) {
     let out=''; ps.stdout.setEncoding('utf8').on('data',x=>out+=x); ps.on('error',()=>reject(new Error('Windows protected storage failed'))); ps.on('close',code=>code===0&&out?resolve(Buffer.from(out.trim(),'base64')):reject(new Error('Windows protected storage failed'))); ps.stdin.end(payload.toString('base64'));
   });
 }
+// Store-packaged Windows apps (Claude, Codex) privately redirect new files under AppData,
+// so each client would see its own copy and token. The user profile root is shared by all.
+export function dataDirectory(){
+  if(process.env.LETTIDE_DATA_DIR)return path.resolve(process.env.LETTIDE_DATA_DIR);
+  return process.platform==='darwin'?path.join(os.homedir(),'Library','Application Support','Lettide'):path.join(os.homedir(),'.lettide');
+}
+const legacyWindowsFile=()=>path.join(process.env.LOCALAPPDATA||path.join(os.homedir(),'AppData','Local'),'Lettide','state.dpapi');
+const exists=file=>fs.access(file).then(()=>true,()=>false);
 export class Store {
-  constructor({file=process.platform==='darwin'?path.join(os.homedir(),'Library','Application Support','Lettide','state.enc'):path.join(process.env.LOCALAPPDATA||path.join(os.homedir(),'AppData','Local'),'Lettide','state.dpapi'), codec=null,readOnly=false}={}) { this.file=file; this.codec=codec; this.readOnly=readOnly; this.state=null; this.queue=Promise.resolve(); this.lockHandle=null; this.windowsCrypto=createWindowsCodec({keyFile:file+'.key.dpapi',dpapi}); }
+  constructor({file, legacyFile, codec=null,readOnly=false}={}) {
+    const usesDefault=!file;
+    file??=path.join(dataDirectory(),process.platform==='darwin'?'state.enc':'state.dpapi');
+    this.file=file; this.legacyFile=legacyFile??(usesDefault&&process.platform==='win32'&&!process.env.LETTIDE_DATA_DIR?legacyWindowsFile():null);
+    this.codec=codec; this.readOnly=readOnly; this.state=null; this.queue=Promise.resolve(); this.lockHandle=null; this.windowsCrypto=createWindowsCodec({keyFile:file+'.key.dpapi',dpapi});
+  }
+  // Copies (never moves) data from the pre-0.3.12 location. The state file lands last, so its presence means the copy finished.
+  async migrateLegacy(){
+    if(!this.legacyFile||path.resolve(this.legacyFile)===path.resolve(this.file)||await exists(this.file)||!await exists(this.legacyFile))return;
+    const from=path.dirname(this.legacyFile),to=path.dirname(this.file);
+    try{await fs.cp(path.join(from,'models'),path.join(to,'models'),{recursive:true,force:false,errorOnExist:false});}catch(e){if(e.code!=='ENOENT')console.error('[Lettide] Translation model copy skipped:',e.message);}
+    if(await exists(this.legacyFile+'.key.dpapi'))await fs.copyFile(this.legacyFile+'.key.dpapi',this.file+'.key.dpapi');
+    const tmp=`${this.file}.${process.pid}.${randomUUID()}.migrate`;
+    try{await fs.copyFile(this.legacyFile,tmp);await fs.rename(tmp,this.file);}finally{await fs.rm(tmp,{force:true});}
+  }
   async open(){
     if(this.state&&(this.readOnly||this.lockHandle))return this;
     if(!this.readOnly) await fs.mkdir(path.dirname(this.file),{recursive:true,mode:0o700});
     if(process.platform==='darwin'&&!this.readOnly)await fs.chmod(path.dirname(this.file),0o700);
     if(!this.readOnly) await this.acquireWriterLock();
     try {
+      if(!this.readOnly) await this.migrateLegacy();
       let raw; try { raw=await fs.readFile(this.file); } catch(e) {
         if(e.code!=='ENOENT'||this.readOnly) throw e;
         this.state=initial(); const encrypted=await this.encrypt(Buffer.from(JSON.stringify(this.state))),tmp=`${this.file}.${process.pid}.${randomUUID()}.init`;

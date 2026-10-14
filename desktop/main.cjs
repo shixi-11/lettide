@@ -32,7 +32,8 @@ function createTray(){
 function showMainWindow(){if(!window)return;if(window.isMinimized())window.restore();window.show();window.focus();}
 async function startService(){
   try{const r=await fetch(base+'/',{signal:AbortSignal.timeout(1500)});if(r.ok)return;}catch{}
-  const logs=process.platform==='win32'?path.join(process.env.LOCALAPPDATA,'Lettide','logs'):path.join(app.getPath('userData'),'logs');fs.mkdirSync(logs,{recursive:true});
+  // Same data directory as backend/src/store.js dataDirectory().
+  const logs=path.join(process.env.LETTIDE_DATA_DIR?path.resolve(process.env.LETTIDE_DATA_DIR):process.platform==='win32'?path.join(require('node:os').homedir(),'.lettide'):app.getPath('userData'),'logs');fs.mkdirSync(logs,{recursive:true});
   const out=fs.openSync(path.join(logs,'service.log'),'a');const err=fs.openSync(path.join(logs,'service-error.log'),'a');
   const child=spawn(process.execPath,[path.join(root,'backend','src','server.js')],{cwd:root,env:{...process.env,ELECTRON_RUN_AS_NODE:'1'},windowsHide:true,detached:true,stdio:['ignore',out,err]});
   child.unref();fs.closeSync(out);fs.closeSync(err);

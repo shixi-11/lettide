@@ -1,5 +1,21 @@
 # 更新记录 / Changelog
 
+## 0.3.12
+
+### 中文
+
+- Windows 数据目录改为 `%USERPROFILE%\.lettide`。从微软商店安装的 Claude、Codex 会把各自写进 `AppData` 的新文件放到私有位置，导致每个客户端各存一份数据、令牌对不上，后到的客户端连接叠信时报「Server disconnected」。现在所有客户端和桌面程序共用同一份数据。
+- 首次启动时，旧目录 `%LOCALAPPDATA%\Lettide` 里的加密数据、密钥和离线翻译模型会复制到新目录，原处保留不删；新目录已有数据时不再复制，也不会被旧数据覆盖。
+- 可用环境变量 `LETTIDE_DATA_DIR` 指定数据目录。
+- AI 助手连到使用另一份数据的叠信服务时，报错会说明原因和处理办法，而不是只显示认证失败。
+
+### English
+
+- Windows data now lives in `%USERPROFILE%\.lettide`. Claude and Codex installed from the Microsoft Store redirect new files under `AppData` into private per-app locations, so each client kept its own copy and token, and whichever client started second saw “Server disconnected”. All clients and the desktop app now share one data folder.
+- On first start, the encrypted data, key and offline translation model in the former `%LOCALAPPDATA%\Lettide` are copied to the new folder and left in place. Once the new folder holds data, nothing is copied again and older data never overwrites it.
+- Set `LETTIDE_DATA_DIR` to choose another data folder.
+- When an AI assistant reaches a Lettide service that uses different data, the error now explains why and what to do instead of only reporting an authentication failure.
+
 ## 0.3.11
 
 ### 中文

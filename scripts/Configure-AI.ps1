@@ -9,7 +9,8 @@ if (!$mailElectron) {$mailElectron=Join-Path $mailRoot 'output\desktop\win-unpac
 $mailEnvironment=@()
 if (Test-Path -LiteralPath $mailElectron) {$mailNode=$mailElectron;$mailEntry=Join-Path (Split-Path $mailElectron -Parent) 'resources\backend\src\mcp.js';$mailEnvironment=@('--env','ELECTRON_RUN_AS_NODE=1')}
 if (!(Test-Path -LiteralPath $mailNode) -or !(Test-Path -LiteralPath $mailEntry)) {throw '找不到邮箱运行环境。'}
-$mailBackup = Join-Path $env:LOCALAPPDATA ('Lettide\config-backups\'+(Get-Date -Format 'yyyyMMdd-HHmmss'))
+$mailData = if ($env:LETTIDE_DATA_DIR) {$env:LETTIDE_DATA_DIR} else {Join-Path $env:USERPROFILE '.lettide'}
+$mailBackup = Join-Path $mailData ('config-backups\'+(Get-Date -Format 'yyyyMMdd-HHmmss'))
 function Save-ConfigBackup([string]$source,[string]$name) {if (!$DryRun -and (Test-Path -LiteralPath $source)) {New-Item -ItemType Directory -Path $mailBackup -Force|Out-Null;Copy-Item -LiteralPath $source -Destination (Join-Path $mailBackup $name)}}
 $mailCodex = Get-Command codex -ErrorAction SilentlyContinue
 if ($mailCodex) {

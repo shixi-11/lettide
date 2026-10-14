@@ -1,6 +1,6 @@
 # Lettide backend
 
-The local service binds only to `127.0.0.1:47831`. It serves `../web/dist` when present. Windows stores encrypted data under `%LOCALAPPDATA%\Lettide` with CurrentUser DPAPI; macOS uses `~/Library/Application Support/Lettide` with a Keychain-backed AES-256-GCM key. Startup refuses to reset unreadable data or silently fall back to plaintext.
+The local service binds only to `127.0.0.1:47831`. It serves `../web/dist` when present. Windows stores encrypted data under `%USERPROFILE%\.lettide` with CurrentUser DPAPI (from 0.3.12; data from the former `%LOCALAPPDATA%\Lettide` is copied there once and left in place; `LETTIDE_DATA_DIR` overrides the location); macOS uses `~/Library/Application Support/Lettide` with a Keychain-backed AES-256-GCM key. Startup refuses to reset unreadable data or silently fall back to plaintext.
 
 Run `pnpm install`, then `pnpm start`. The MCP stdio bridge is `pnpm mcp`; it starts the shared service in a hidden detached process when needed. The browser UI uses a SameSite=Strict HttpOnly cookie and same-origin checks. MCP calls authenticate with the random token inside the encrypted store. Neither the token nor provider credentials appear in tool results.
 

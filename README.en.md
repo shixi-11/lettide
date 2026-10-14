@@ -2,12 +2,12 @@
 
 A calmer home for Gmail, Outlook, GoDaddy and QQ Mail, with inline translation and shared mail tools for Codex and Claude.
 
-**Preview 0.3.11** · [Downloads](https://github.com/shixi-11/lettide/releases/tag/v0.3.11) · [Changelog](CHANGELOG.md) · [中文说明](README.md)
+**Preview 0.3.12** · [Downloads](https://github.com/shixi-11/lettide/releases/tag/v0.3.12) · [Changelog](CHANGELOG.md) · [中文说明](README.md)
 
 | Platform | English installer | Chinese installer |
 | --- | --- | --- |
-| Windows 10 / 11, x64 | [Lettide](https://github.com/shixi-11/lettide/releases/download/v0.3.11/Lettide-0.3.11-win-x64-en.exe) | [叠信](https://github.com/shixi-11/lettide/releases/download/v0.3.11/Lettide-0.3.11-win-x64-zh-CN.exe) |
-| macOS 12+, Apple Silicon and Intel | [Lettide DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.11/Lettide-0.3.11-mac-universal-en.dmg) | [叠信 DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.11/Lettide-0.3.11-mac-universal-zh-CN.dmg) |
+| Windows 10 / 11, x64 | [Lettide](https://github.com/shixi-11/lettide/releases/download/v0.3.12/Lettide-0.3.12-win-x64-en.exe) | [叠信](https://github.com/shixi-11/lettide/releases/download/v0.3.12/Lettide-0.3.12-win-x64-zh-CN.exe) |
+| macOS 12+, Apple Silicon and Intel | [Lettide DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.12/Lettide-0.3.12-mac-universal-en.dmg) | [叠信 DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.12/Lettide-0.3.12-mac-universal-zh-CN.dmg) |
 
 Run the Windows installer, or open the DMG and drag the app into Applications. Node.js is included. Choose English, Chinese or the system language in Settings. These preview installers are unsigned; the Mac app is not notarized. Downloads appear when the corresponding build finishes. Automated Mac builds do not constitute a physical Mac UI acceptance test.
 
@@ -21,7 +21,7 @@ Download the offline model once in Settings (about 920 MB). Clicking Translated 
 
 Folders appear in All inboxes grouped by account. Open Manage accounts to reorder accounts or remove local connections in a separate window. Closing a window keeps Lettide in the system tray; right-click the tray icon and choose Quit Lettide to stop the app and shared service. A later assistant connection can start the service again.
 
-Mail caches use AES-256-GCM. Windows protects the random encryption key with CurrentUser DPAPI; macOS stores it in Keychain. Local data and configuration do not belong in Git. Sending through MCP requires explicit confirmation. SMTP messages are copied to the server’s Sent folder; a failed copy can be saved separately through the app or MCP without resending the email.
+Mail caches use AES-256-GCM. Windows protects the random encryption key with CurrentUser DPAPI; macOS stores it in Keychain. Data lives in `%USERPROFILE%/.lettide` on Windows (from 0.3.12; the former `%LOCALAPPDATA%/Lettide` is copied there once and left in place) and `~/Library/Application Support/Lettide` on macOS; set `LETTIDE_DATA_DIR` to choose another folder. Local data and configuration do not belong in Git. Sending through MCP requires explicit confirmation. SMTP messages are copied to the server’s Sent folder; a failed copy can be saved separately through the app or MCP without resending the email.
 
 Source is available under [PolyForm Noncommercial 1.0.0](LICENSE). Commercial use requires written authorization. See [NOTICE](NOTICE).
 

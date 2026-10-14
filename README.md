@@ -4,12 +4,12 @@
 
 ## 下载安装
 
-当前预览版本 **0.3.11**。[下载页](https://github.com/shixi-11/lettide/releases/tag/v0.3.11) · [更新记录](CHANGELOG.md) · [English](README.en.md)
+当前预览版本 **0.3.12**。[下载页](https://github.com/shixi-11/lettide/releases/tag/v0.3.12) · [更新记录](CHANGELOG.md) · [English](README.en.md)
 
 | 系统 | 中文版「叠信」 | English “Lettide” |
 | --- | --- | --- |
-| Windows 10 / 11，64 位 | [下载安装程序](https://github.com/shixi-11/lettide/releases/download/v0.3.11/Lettide-0.3.11-win-x64-zh-CN.exe) | [Download installer](https://github.com/shixi-11/lettide/releases/download/v0.3.11/Lettide-0.3.11-win-x64-en.exe) |
-| macOS 12+，Apple 芯片与 Intel 通用 | [下载 DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.11/Lettide-0.3.11-mac-universal-zh-CN.dmg) | [Download DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.11/Lettide-0.3.11-mac-universal-en.dmg) |
+| Windows 10 / 11，64 位 | [下载安装程序](https://github.com/shixi-11/lettide/releases/download/v0.3.12/Lettide-0.3.12-win-x64-zh-CN.exe) | [Download installer](https://github.com/shixi-11/lettide/releases/download/v0.3.12/Lettide-0.3.12-win-x64-en.exe) |
+| macOS 12+，Apple 芯片与 Intel 通用 | [下载 DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.12/Lettide-0.3.12-mac-universal-zh-CN.dmg) | [Download DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.12/Lettide-0.3.12-mac-universal-en.dmg) |
 
 Windows 双击安装；macOS 打开 DMG 后把应用拖入「应用程序」。内置运行环境，无需安装 Node.js。中文版与英文版功能相同，可在设置中切换中文、English 或跟随系统。
 
@@ -45,7 +45,7 @@ Windows 双击安装；macOS 打开 DMG 后把应用拖入「应用程序」。�
 
 离线模型使用 Meta NLLB-200 的量化 ONNX 版本；详见 [模型来源与许可](docs/translation-model.md)。高级助手任务仍可显式选择 MCP 翻译队列。
 
-Windows 使用当前用户 DPAPI 保护随机密钥，macOS 使用 Keychain 保存随机密钥；邮件缓存使用 AES-256-GCM 加密。数据分别位于 `%LOCALAPPDATA%/Lettide` 与 `~/Library/Application Support/Lettide`。不要上传数据目录、令牌、授权码、客户端备份或 OAuth 密钥。
+Windows 使用当前用户 DPAPI 保护随机密钥，macOS 使用 Keychain 保存随机密钥；邮件缓存使用 AES-256-GCM 加密。数据分别位于 `%USERPROFILE%/.lettide`（0.3.12 起；旧目录数据首次启动时自动复制过来，原处保留；可用环境变量 `LETTIDE_DATA_DIR` 指定） 与 `~/Library/Application Support/Lettide`。不要上传数据目录、令牌、授权码、客户端备份或 OAuth 密钥。
 
 ## 开发与发布
 
