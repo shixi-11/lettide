@@ -18,8 +18,9 @@ test('failed encrypted persistence cannot leak nested attachment edits and later
  const store=await new Store({file:join(dir,'state'),codec:{protect:async data=>{if(fail)throw new Error('fictional disk error');return data;},unprotect:async data=>data}}).open();
  try{
   await store.mutate(s=>s.messages.push({id:'sample',attachments:[{content:'ZmFrZQ==',metadata:{tags:['base']}}]}));
+  const saved={...store.state.messages[0].attachments[0]};assert.equal(saved.content,undefined);
   fail=true;await assert.rejects(store.mutate(s=>{s.messages[0].attachments[0].content='changed';s.messages[0].attachments[0].metadata.tags.push('changed');}),/fictional disk error/);
-  assert.equal(store.state.messages[0].attachments[0].content,'ZmFrZQ==');assert.deepEqual(store.state.messages[0].attachments[0].metadata.tags,['base']);fail=false;await store.mutate(s=>s.messages[0].starred=true);assert.equal(store.state.messages[0].starred,true);
+  assert.equal(store.state.messages[0].attachments[0].blob,saved.blob);assert.equal(store.state.messages[0].attachments[0].content,undefined);assert.equal((await store.readAttachment(store.state.messages[0].attachments[0])).toString(),'fake');assert.deepEqual(store.state.messages[0].attachments[0].metadata.tags,['base']);fail=false;await store.mutate(s=>s.messages[0].starred=true);assert.equal(store.state.messages[0].starred,true);
   const readback=await new Store({file:join(dir,'state'),readOnly:true,codec:{unprotect:async data=>data}}).open();try{assert.deepEqual(readback.state.messages,store.state.messages);}finally{await readback.close();}
  }finally{await store.close();await rm(dir,{recursive:true,force:true});}
 });

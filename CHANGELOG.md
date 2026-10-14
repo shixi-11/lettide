@@ -1,5 +1,23 @@
 # 更新记录 / Changelog
 
+## 0.3.13
+
+### 中文
+
+- 收到的附件改为逐个单独加密存放在数据目录的 `attachments` 文件夹，主数据文件只保留邮件列表和正文。附件多的邮箱，主数据文件从几百 MB 降到几 MB；每次同步保存不再整份重写，后台不会再每分钟卡住几秒，打开程序和切换邮件更快，内存占用也大幅下降。
+- 首次启动 0.3.13 时自动完成拆分，不需要重新下载附件。每个附件都校验内容哈希，文件被改动或调换时拒绝提供，不会给出错误内容。
+- 已删除邮件留下的附件文件会在下次启动时清理。
+- 离线翻译按 CPU 自动限制推理线程（逻辑核数的一半，最多 8 个）。性能核加效率核的混合处理器上，不再让每一步都等最慢的效率核；i9-14900K 实测同一段虚构长文快约 12%～25%。
+- 拆分后的数据不能再用 0.3.12 及更早版本打开附件；请勿降级。
+
+### English
+
+- Received attachments are now stored one by one as separate encrypted files in the data folder's `attachments` directory, leaving only the mail list and bodies in the main data file. For attachment-heavy mailboxes the main file shrinks from hundreds of megabytes to a few, so routine sync saves no longer rewrite everything, the service no longer stalls for seconds every minute, opening the app and switching messages is faster, and memory use drops sharply.
+- The split happens automatically the first time 0.3.13 starts; attachments are not downloaded again. Each attachment is checked against its content hash and is refused if its file was altered or swapped, so wrong content is never served.
+- Attachment files left behind by removed mail are cleaned up at the next start.
+- Offline translation now caps inference threads by CPU (half the logical cores, at most 8). On hybrid CPUs with performance and efficiency cores, decoding no longer waits on the slowest efficiency core at every step; the same fictional long text ran about 12–25% faster on an i9-14900K.
+- After the split, version 0.3.12 and earlier cannot open these attachments; do not downgrade.
+
 ## 0.3.12
 
 ### 中文

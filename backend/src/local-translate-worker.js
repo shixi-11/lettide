@@ -4,6 +4,7 @@ import { createReadStream } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join, dirname } from 'node:path';
 import { once } from 'node:events';
+import { availableParallelism } from 'node:os';
 import { finished } from 'node:stream/promises';
 import { detectSourceLanguage, normalizeLanguage } from './translation-language.js';
 import { assertTranslationChanged, assertTranslationQuality, tokenSegments } from './translation-text.js';
@@ -56,7 +57,10 @@ async function loadModel() {
   env.localModelPath = workerData.modelDir + (workerData.modelDir.endsWith('/') || workerData.modelDir.endsWith('\\') ? '' : '/');
   env.cacheDir = join(workerData.modelDir, '.cache');
   env.useFSCache = true;
-  pipe = await pipeline('translation', MODEL, { dtype: 'q8', device: 'cpu', local_files_only: true });
+  // ONNX Runtime defaults to one thread per physical core. On hybrid CPUs every decoding step then
+  // waits for the slowest efficiency core; capping at 8 measured about 25% faster on a 24-core i9-14900K.
+  const threads = Math.max(1, Math.min(8, Math.floor(availableParallelism() / 2)));
+  pipe = await pipeline('translation', MODEL, { dtype: 'q8', device: 'cpu', local_files_only: true, session_options: { intraOpNumThreads: threads, interOpNumThreads: 1 } });
   globalThis.fetch = async () => { throw new Error('Network access is disabled after the local model is loaded'); };
   sendStatus('ready', { progress: 100, downloadedBytes: TOTAL });
 }

@@ -3,7 +3,7 @@ import {promises as fs} from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import {spawn} from 'node:child_process';
-import {randomBytes, randomUUID} from 'node:crypto';
+import {createHash, randomBytes, randomUUID} from 'node:crypto';
 import * as macosCrypto from './macos-crypto.js';
 import {createWindowsCodec} from './windows-crypto.js';
 
@@ -26,6 +26,9 @@ export function dataDirectory(){
 }
 const legacyWindowsFile=()=>path.join(process.env.LOCALAPPDATA||path.join(os.homedir(),'AppData','Local'),'Lettide','state.dpapi');
 const exists=file=>fs.access(file).then(()=>true,()=>false);
+const sha256=data=>createHash('sha256').update(data).digest('hex');
+const attachmentName=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const hasInlineAttachments=state=>(state?.messages||[]).some(m=>(m.attachments||[]).some(a=>typeof a.content==='string'));
 export class Store {
   constructor({file, legacyFile, codec=null,readOnly=false}={}) {
     const usesDefault=!file;
@@ -55,7 +58,8 @@ export class Store {
         const h=await fs.open(tmp,'wx',0o600);try{await h.writeFile(encrypted);await h.sync();}finally{await h.close();}
         try{await fs.link(tmp,this.file);await fs.rm(tmp,{force:true});return this;}catch(err){await fs.rm(tmp,{force:true});if(err.code!=='EEXIST')throw err;raw=await fs.readFile(this.file);}
       }
-      if(raw){if(process.platform==='darwin'&&!this.readOnly)await fs.chmod(this.file,0o600);if(this.codec)this.state=JSON.parse((await this.codec.unprotect(raw)).toString('utf8'));else if(raw.subarray(0,4).equals(Buffer.from('YQ02'))){if(process.platform!=='darwin')throw new Error();this.state=JSON.parse((await macosCrypto.unprotect(raw)).toString('utf8'));}else if(raw.subarray(0,4).equals(Buffer.from('YQ03'))){if(process.platform!=='win32')throw new Error();this.state=JSON.parse((await this.windowsCrypto.unprotect(raw)).toString('utf8'));}else{if(!raw.subarray(0,4).equals(Buffer.from('YQ01')))throw new Error();this.state=JSON.parse((await dpapi('unprotect',raw.subarray(4))).toString('utf8'));}}
+      if(raw){if(process.platform==='darwin'&&!this.readOnly)await fs.chmod(this.file,0o600);this.state=JSON.parse((await this.decrypt(raw)).toString('utf8'));}
+      if(!this.readOnly){if(hasInlineAttachments(this.state))await this.save();await this.collectAttachmentFiles();}
       return this;
     } catch(e){await this.close();if(e.message==='Windows protected storage failed'||e.message.startsWith('macOS Keychain')||e.message.startsWith('Another email service'))throw e;if(e.code==='ENOENT'&&this.readOnly)throw e;throw new Error('Stored data could not be safely opened; refusing to reset it');}
   }
@@ -65,7 +69,39 @@ export class Store {
     catch(e){if(e.code!=='EEXIST')throw e;let owner;try{owner=JSON.parse(await fs.readFile(lockPath,'utf8'));}catch{}let alive=true;if(owner?.pid)try{process.kill(owner.pid,0);}catch(err){if(err.code==='ESRCH')alive=false;}if(!alive){await fs.rm(lockPath,{force:true});return this.acquireWriterLock();}throw new Error('Another email service backend writer is already running');}
   }
   async encrypt(payload){if(this.codec)return this.codec.protect(payload);if(process.platform==='darwin')return macosCrypto.protect(payload);if(process.platform!=='win32')throw new Error('Protected storage is unavailable on this platform');return this.windowsCrypto.protect(payload);}
-  async persist(state){if(this.readOnly)throw new Error('Read-only store');const encrypted=await this.encrypt(Buffer.from(JSON.stringify(state))),tmp=`${this.file}.${process.pid}.${randomUUID()}.tmp`,backup=`${this.file}.${process.pid}.${randomUUID()}.bak`;const h=await fs.open(tmp,'wx',0o600);try{await h.writeFile(encrypted);await h.sync();}finally{await h.close();}try{try{await fs.rename(this.file,backup);await fs.rename(tmp,this.file);await fs.rm(backup,{force:true});}catch(e){try{await fs.access(backup);await fs.rename(backup,this.file);}catch{}throw e;}}catch(e){await fs.rm(tmp,{force:true});throw e;}}
+  async decrypt(raw){if(this.codec)return this.codec.unprotect(raw);const magic=raw.subarray(0,4).toString('latin1');if(magic==='YQ02'){if(process.platform!=='darwin')throw new Error();return macosCrypto.unprotect(raw);}if(magic==='YQ03'){if(process.platform!=='win32')throw new Error();return this.windowsCrypto.unprotect(raw);}if(magic!=='YQ01')throw new Error();return dpapi('unprotect',raw.subarray(4));}
+  // Received attachments live in separate encrypted files, so routine saves rewrite only the small mail index.
+  get attachmentDir(){return path.join(path.dirname(this.file),'attachments');}
+  async readAttachment(attachment){
+    if(typeof attachment?.content==='string')return Buffer.from(attachment.content,'base64');
+    if(!attachmentName.test(attachment?.blob||''))throw new Error('Attachment content is unavailable');
+    const data=await this.decrypt(await fs.readFile(path.join(this.attachmentDir,attachment.blob)));
+    if(sha256(data)!==attachment.sha256)throw new Error('Attachment content failed verification');
+    return data;
+  }
+  async externalizeAttachments(state){
+    const known=new Map();for(const m of this.state?.messages||[])for(const a of m.attachments||[])if(a.blob)known.set(a.id,a);
+    let dirReady=false;
+    for(const m of state.messages||[])for(const a of m.attachments||[]){
+      if(typeof a.content!=='string')continue;
+      const data=Buffer.from(a.content,'base64'),hash=sha256(data),previous=known.get(a.id);
+      if(previous?.sha256===hash&&await exists(path.join(this.attachmentDir,previous.blob)))a.blob=previous.blob;
+      else{
+        if(!dirReady){await fs.mkdir(this.attachmentDir,{recursive:true,mode:0o700});dirReady=true;}
+        const blob=randomUUID(),file=path.join(this.attachmentDir,blob),tmp=`${file}.${process.pid}.tmp`,h=await fs.open(tmp,'wx',0o600);
+        try{await h.writeFile(await this.encrypt(data));await h.sync();}finally{await h.close();}
+        await fs.rename(tmp,file);a.blob=blob;
+      }
+      a.sha256=hash;delete a.content;
+    }
+  }
+  // Only the writer runs this, before any transaction, so every unreferenced file is an orphan from removed mail or an interrupted save.
+  async collectAttachmentFiles(){
+    let names;try{names=await fs.readdir(this.attachmentDir);}catch{return;}
+    const used=new Set();for(const m of this.state.messages||[])for(const a of m.attachments||[])if(a.blob)used.add(a.blob);
+    for(const name of names)if(!used.has(name))await fs.rm(path.join(this.attachmentDir,name),{force:true}).catch(()=>{});
+  }
+  async persist(state){if(this.readOnly)throw new Error('Read-only store');await this.externalizeAttachments(state);const encrypted=await this.encrypt(Buffer.from(JSON.stringify(state))),tmp=`${this.file}.${process.pid}.${randomUUID()}.tmp`,backup=`${this.file}.${process.pid}.${randomUUID()}.bak`;const h=await fs.open(tmp,'wx',0o600);try{await h.writeFile(encrypted);await h.sync();}finally{await h.close();}try{try{await fs.rename(this.file,backup);await fs.rename(tmp,this.file);await fs.rm(backup,{force:true});}catch(e){try{await fs.access(backup);await fs.rename(backup,this.file);}catch{}throw e;}}catch(e){await fs.rm(tmp,{force:true});throw e;}}
   async save(){await this.persist(this.state);}
   mutate(fn){const operation=this.queue.catch(()=>{}).then(async()=>{if(this.readOnly)throw new Error('Read-only store');const next=cloneData(this.state),out=await fn(next);await this.persist(next);this.state=next;return out;});this.queue=operation.catch(()=>{});return operation;}
   async close(){this.windowsCrypto.close();if(this.lockHandle){try{await this.lockHandle.close();}catch{}this.lockHandle=null;try{await fs.rm(this.lockPath,{force:true});}catch{}}}
