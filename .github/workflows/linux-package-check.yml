@@ -1,0 +1,42 @@
+name: Check Linux release package
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Existing release version / 检查已有发布版本'
+        type: string
+        default: '0.4.1'
+permissions:
+  contents: read
+jobs:
+  fedora:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ inputs.version }}
+      - name: Download existing RPM candidate
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_VERSION: ${{ inputs.version }}
+        shell: bash
+        run: |
+          [[ "$PACKAGE_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]
+          mkdir -p output/desktop
+          gh release download "v$PACKAGE_VERSION" --pattern "Lettide-$PACKAGE_VERSION-linux-x64-zh-CN.rpm" --dir output/desktop
+      - name: Check native runtime with isolated Fedora user and keyring
+        shell: bash
+        run: |
+          docker run --rm -v "$PWD:/workspace:ro" -w /workspace fedora:44 bash -euxc '
+            dnf install -y /workspace/output/desktop/*.rpm dbus-daemon xorg-x11-server-Xvfb shadow-utils util-linux
+            Xvfb :99 -screen 0 1280x720x24 >/dev/null 2>&1 &
+            xpid=$!
+            trap "kill $xpid" EXIT
+            export DISPLAY=:99
+            ls -l /usr/bin/Lettide
+            export LETTIDE_TEST_EXECUTABLE="$(readlink -f /usr/bin/Lettide)"
+            test -f "$LETTIDE_TEST_EXECUTABLE" && test -x "$LETTIDE_TEST_EXECUTABLE"
+            useradd --create-home lettide-test
+            runuser -u lettide-test -- env SHELLOPTS=xtrace bash -x scripts/With-LinuxKeyring.sh env ELECTRON_RUN_AS_NODE=1 "$LETTIDE_TEST_EXECUTABLE" /workspace/scripts/Verify-PackagedRuntime.mjs
+          '
