@@ -30,8 +30,8 @@ export function mcpTarget(){
   const executable=process.env.LETTIDE_EXECUTABLE;
   const entry=process.env.LETTIDE_MCP_ENTRY||(executable?process.platform==='darwin'?path.resolve(path.dirname(executable),'..','Resources','backend','src','mcp.js'):path.join(path.dirname(executable),'resources','backend','src','mcp.js'):path.join(root,'backend','src','mcp.js'));
   const command=executable||process.execPath;
-  if(process.platform==='linux'&&process.env.LETTIDE_APPIMAGE==='1'){const target=runtimeCommand('mcp.js',{appImage:executable});return {...target,env:{ELECTRON_RUN_AS_NODE:'1',...(process.env.LETTIDE_DATA_DIR?{LETTIDE_DATA_DIR:process.env.LETTIDE_DATA_DIR}:{})}};}
-  return {command,args:[entry],env:{...(executable?{ELECTRON_RUN_AS_NODE:'1'}:{}),...(process.env.LETTIDE_DATA_DIR?{LETTIDE_DATA_DIR:process.env.LETTIDE_DATA_DIR}:{})}};
+  if(process.platform==='linux'&&process.env.LETTIDE_APPIMAGE==='1'){const target=runtimeCommand('mcp.js',{appImage:executable});return {...target,env:{ELECTRON_RUN_AS_NODE:'1',LETTIDE_DATA_DIR:dataDirectory()}};}
+  return {command,args:[entry],env:{...(executable?{ELECTRON_RUN_AS_NODE:'1'}:{}),LETTIDE_DATA_DIR:dataDirectory()}};
 }
 export function mergeClaudeDesktopConfig(existing,target){
   const config=existing?JSON.parse(existing):{};

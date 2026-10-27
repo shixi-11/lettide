@@ -34,11 +34,12 @@ async function startService(){
   try{const r=await fetch(base+'/',{signal:AbortSignal.timeout(1500)});if(r.ok)return;}catch{}
   // Same data directory as backend/src/store.js dataDirectory().
   const {dataDirectory}=await import(require('node:url').pathToFileURL(path.join(root,'backend','src','store.js')).href);
-  const logs=path.join(dataDirectory(),'logs');fs.mkdirSync(logs,{recursive:true});
+  const resolvedData=dataDirectory();
+  const logs=path.join(resolvedData,'logs');fs.mkdirSync(logs,{recursive:true});
   const out=fs.openSync(path.join(logs,'service.log'),'a');const err=fs.openSync(path.join(logs,'service-error.log'),'a');
   const {runtimeCommand}=await import(require('node:url').pathToFileURL(path.join(root,'backend','src','desktop-runtime.js')).href);
   const target=runtimeCommand(path.join(root,'backend','src','server.js'));
-  const child=spawn(target.command,target.args,{cwd:root,env:{...process.env,ELECTRON_RUN_AS_NODE:'1'},windowsHide:true,detached:true,stdio:['ignore',out,err]});
+  const child=spawn(target.command,target.args,{cwd:root,env:{...process.env,LETTIDE_DATA_DIR:resolvedData,ELECTRON_RUN_AS_NODE:'1'},windowsHide:true,detached:true,stdio:['ignore',out,err]});
   child.unref();fs.closeSync(out);fs.closeSync(err);
   const deadline=Date.now()+120000;
   while(Date.now()<deadline){await new Promise(r=>setTimeout(r,500));try{const r=await fetch(base+'/',{signal:AbortSignal.timeout(1500)});if(r.ok)return;}catch{}}
@@ -84,8 +85,9 @@ if(!app.requestSingleInstanceLock()){app.quit();}else{
     ipcMain.handle('lettide:configure-ai',async(event)=>{
       if(event.sender!==window?.webContents||new URL(event.senderFrame.url).origin!==base)throw new Error('请求来源无效');
       const script=path.join(root,'scripts','Configure-AI.ps1');
+      const {dataDirectory}=await import(require('node:url').pathToFileURL(path.join(root,'backend','src','store.js')).href);
       return await new Promise(resolve=>{
-        const unix=process.platform!=='win32';const ps=spawn(unix?process.execPath:'powershell.exe',unix?[path.join(root,'scripts','Configure-AI.mjs')]:['-NoProfile','-ExecutionPolicy','Bypass','-File',script],{windowsHide:true,env:{...process.env,LETTIDE_EXECUTABLE:app.isPackaged?(process.platform==='linux'&&process.env.APPIMAGE?process.env.APPIMAGE:process.execPath):'',LETTIDE_APPIMAGE:process.platform==='linux'&&process.env.APPIMAGE?'1':'',LETTIDE_MCP_ENTRY:path.join(root,'backend','src','mcp.js'),ELECTRON_RUN_AS_NODE:unix?'1':''}});
+        const unix=process.platform!=='win32';const ps=spawn(unix?process.execPath:'powershell.exe',unix?[path.join(root,'scripts','Configure-AI.mjs')]:['-NoProfile','-ExecutionPolicy','Bypass','-File',script],{windowsHide:true,env:{...process.env,LETTIDE_DATA_DIR:dataDirectory(),LETTIDE_EXECUTABLE:app.isPackaged?(process.platform==='linux'&&process.env.APPIMAGE?process.env.APPIMAGE:process.execPath):'',LETTIDE_APPIMAGE:process.platform==='linux'&&process.env.APPIMAGE?'1':'',LETTIDE_MCP_ENTRY:path.join(root,'backend','src','mcp.js'),ELECTRON_RUN_AS_NODE:unix?'1':''}});
         let failed=false;ps.on('error',()=>{failed=true;resolve({ok:false,message:'无法打开配置工具，请运行项目中的连接AI助手.cmd。'});});
         ps.on('exit',code=>{if(!failed)resolve({ok:code===0,message:code===0?'已配置找到的客户端，重启对应客户端后可用。':'配置未完成，请检查已安装的 AI 客户端。'});});
       });

@@ -31,4 +31,4 @@ const override={...pkg.build,mac:macOptions,extraResources:resources,productName
 const config=path.join(root,'desktop/release-config.json');await writeFile(config,JSON.stringify(override));
 const builder=path.join(root,'desktop/node_modules/electron-builder/out/cli/cli.js');
 const child=spawn(process.execPath,[builder,'--'+(platform.id==='win'?'win':platform.id),...platform.targets,'--'+arch,'--config',config,'--publish','never'],{cwd:path.join(root,'desktop'),env:{...process.env,CSC_IDENTITY_AUTO_DISCOVERY:'false'},stdio:'inherit'});
-child.on('error',e=>{console.error(e.message);process.exitCode=1});child.on('exit',code=>process.exitCode=code||0);
+child.on('error',e=>{console.error(e.message);process.exitCode=1});child.on('exit',(code,signal)=>process.exitCode=code===0&&!signal?0:1);

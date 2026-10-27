@@ -26,5 +26,5 @@ const code=`(async()=>{
  console.log(JSON.stringify({packagedRuntime:true,platform:process.platform,arch:process.arch,translationDependencies:true,nativeImageDependency:true,secretService:process.platform==='linux'}));
 })().catch(e=>{console.error(e.message);process.exitCode=1;});`;
 const child=spawn(executable,[...args,'-e',code],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1'},windowsHide:true,stdio:'inherit'});
-const timer=setTimeout(()=>{child.kill();process.exitCode=1;console.error('Packaged runtime check timed out');},120000);
-child.on('error',e=>{clearTimeout(timer);console.error(e.message);process.exitCode=1;});child.on('exit',code=>{clearTimeout(timer);process.exitCode=code||0;});
+let timedOut=false;const timer=setTimeout(()=>{timedOut=true;child.kill();process.exitCode=1;console.error('Packaged runtime check timed out');},120000);
+child.on('error',e=>{clearTimeout(timer);console.error(e.message);process.exitCode=1;});child.on('exit',(code,signal)=>{clearTimeout(timer);process.exitCode=code===0&&!signal&&!timedOut?0:1;});

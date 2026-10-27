@@ -12,3 +12,9 @@ test('download verification rejects a broken link, HTML login page and wrong ins
  await assert.rejects(verifyDownload('https://example.test/x.deb','deb',async()=>new Response('wrong bytes')),/format/);
  assert.equal(await verifyDownload('https://example.test/x.deb','deb',async()=>new Response('!<arch>\ncontent',{status:206})),206);
 });
+
+test('download signatures can span network chunks and invalid DMG trailers are rejected',async()=>{
+ const fetchSplit=async()=>new Response(new ReadableStream({start(c){c.enqueue(Buffer.from('M'));c.enqueue(Buffer.from('Zbody'));c.close();}}),{status:206});assert.equal(await verifyDownload('https://example.test/app.exe','exe',fetchSplit),206);
+ await assert.rejects(verifyDownload('https://example.test/app.dmg','dmg',async()=>new Response('not a disk image',{status:206})),/format/);
+ let range;assert.equal(await verifyDownload('https://example.test/app.dmg','dmg',async(_url,options)=>{range=options.headers.Range;return new Response('koly'+'.'.repeat(508),{status:206});}),206);assert.equal(range,'bytes=-512');
+});
