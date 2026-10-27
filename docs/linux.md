@@ -10,7 +10,7 @@
 - **Fedora：**下载 `.rpm`，用系统软件中心打开并安装；也可使用 `sudo dnf install ./Lettide-版本-linux-x64-zh-CN.rpm`。
 - **其他常用桌面发行版：**选择 `.AppImage`，在文件属性中允许执行后打开。也可先运行 `chmod +x Lettide-版本-linux-x64-zh-CN.AppImage`。不需要另装 Node.js。
 
-AppImage 仍使用系统图形库、桌面钥匙串和 FUSE。若系统没有 FUSE，可运行 `./Lettide-版本-linux-x64-zh-CN.AppImage --appimage-extract-and-run`。限制 AppImage 沙箱的系统建议使用本发行版的 DEB/RPM 包，不要关闭浏览器沙箱。
+AppImage 仍使用系统图形库、桌面钥匙串和 FUSE。若系统没有 FUSE，可先用 `./Lettide-版本-linux-x64-zh-CN.AppImage --appimage-extract` 解包，再运行 `./squashfs-root/AppRun`；请把解包目录保存在固定位置。限制 AppImage 沙箱的系统建议使用本发行版的 DEB/RPM 包，不要关闭浏览器沙箱。
 
 ## 桌面钥匙串
 

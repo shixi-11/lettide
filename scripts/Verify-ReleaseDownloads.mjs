@@ -16,10 +16,22 @@ export async function verifyDownload(url,format,fetcher=fetch){
  if(!bytes.subarray(0,magic.length).equals(magic))throw Error('Installer format does not match: '+path.basename(url));
  return r.status;
 }
+export async function readReleaseMetadata(version,headers,{fetcher=fetch}={}){
+ const base='https://api.github.com/repos/shixi-11/lettide',options={headers,signal:AbortSignal.timeout(30000)};
+ const response=await fetcher(`${base}/releases/tags/v${version}`,options);
+ if(response.ok)return response.json();
+ // GitHub's tag lookup only exposes published releases. Drafts are available
+ // to an authorized maintainer through the release list instead.
+ if(response.status===404&&headers.Authorization){
+  const list=await fetcher(`${base}/releases?per_page=100`,options);if(!list.ok)throw Error('Release metadata HTTP '+list.status);
+  const release=(await list.json()).find(r=>r.tag_name===`v${version}`);if(release)return release;
+ }
+ throw Error('Release metadata HTTP '+response.status);
+}
 async function main(){
  const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),version=JSON.parse(await readFile(path.join(root,'desktop/package.json'),'utf8')).version;
  const headers={Accept:'application/vnd.github+json','User-Agent':'Lettide-release-check'},token=process.env.GH_TOKEN||process.env.GITHUB_TOKEN;if(token)headers.Authorization='Bearer '+token;
- const r=await fetch(`https://api.github.com/repos/shixi-11/lettide/releases/tags/v${version}`,{headers,signal:AbortSignal.timeout(30000)});if(!r.ok)throw Error('Release metadata HTTP '+r.status);const release=await r.json(),expected=verifyReleaseMetadata(release,version);let verified=0;if(release.draft&&!process.argv.includes('--metadata-only'))throw Error('Release is still a draft');
+ const release=await readReleaseMetadata(version,headers),expected=verifyReleaseMetadata(release,version);let verified=0;if(release.draft&&!process.argv.includes('--metadata-only'))throw Error('Release is still a draft');
  if(!process.argv.includes('--metadata-only'))for(const asset of expected){const url=`https://github.com/shixi-11/lettide/releases/download/v${version}/${asset.name}`;let error;for(let attempt=0;attempt<3;attempt++){try{await verifyDownload(url,asset.format);error=null;break;}catch(e){error=e;if(attempt<2)await new Promise(r=>setTimeout(r,1500*(attempt+1)));}}if(error)throw error;verified++;console.log(JSON.stringify({download:asset.name,publicAccess:true}));}
  console.log(JSON.stringify({version,expectedInstallers:expected.length,verifiedDownloads:verified,metadataOnly:process.argv.includes('--metadata-only')}));
 }

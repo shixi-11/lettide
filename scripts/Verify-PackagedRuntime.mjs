@@ -2,10 +2,11 @@ import {readdir} from 'node:fs/promises';
 import {spawn} from 'node:child_process';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {appImageRuntimeCommand} from '../backend/src/desktop-runtime.js';
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),output=path.join(root,'output','desktop');
 let executable=process.argv.includes('--appimage')?undefined:process.env.LETTIDE_TEST_EXECUTABLE,args=[];
 if(!executable){
- if(process.argv.includes('--appimage')){const files=(await readdir(output)).filter(n=>n.endsWith('.AppImage'));if(files.length!==1)throw Error('Expected one AppImage for the current build');executable=path.join(output,files[0]);args.push('--appimage-extract-and-run');}
+ if(process.argv.includes('--appimage')){const files=(await readdir(output)).filter(n=>n.endsWith('.AppImage'));if(files.length!==1)throw Error('Expected one AppImage for the current build');executable=path.join(output,files[0]);}
  else if(process.platform==='win32')executable=path.join(output,'win-unpacked','Lettide.exe');
  else if(process.platform==='linux')executable=path.join(output,'linux-unpacked','Lettide');
  else if(process.platform==='darwin'){const app=(await readdir(path.join(output,'mac-universal'))).find(n=>n.endsWith('.app'));if(!app)throw Error('Packaged Mac app not found');const dir=path.join(output,'mac-universal',app,'Contents','MacOS');executable=path.join(dir,(await readdir(dir))[0]);}
@@ -25,6 +26,9 @@ const code=`(async()=>{
  }
  console.log(JSON.stringify({packagedRuntime:true,platform:process.platform,arch:process.arch,translationDependencies:true,nativeImageDependency:true,secretService:process.platform==='linux'}));
 })().catch(e=>{console.error(e.message);process.exitCode=1;});`;
-const child=spawn(executable,[...args,'-e',code],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1'},windowsHide:true,stdio:'inherit'});
+const target=process.argv.includes('--appimage')?appImageRuntimeCommand(executable,['-e',code]):{command:executable,args:[...args,'-e',code]};
+let received=false,lines='';const receipt=line=>{try{const r=JSON.parse(line);if(r.packagedRuntime&&r.platform===process.platform&&r.translationDependencies&&r.nativeImageDependency&&(process.platform!=='linux'||r.secretService))received=true;}catch{}};
+const child=spawn(target.command,target.args,{env:{...process.env,ELECTRON_RUN_AS_NODE:'1'},windowsHide:true,stdio:['ignore','pipe','inherit']});
+child.stdout.on('data',chunk=>{process.stdout.write(chunk);lines+=chunk.toString();const all=lines.split(/\r?\n/u);lines=all.pop();for(const line of all)receipt(line);if(lines.length>4096)lines=lines.slice(-4096);});
 let timedOut=false;const timer=setTimeout(()=>{timedOut=true;child.kill();process.exitCode=1;console.error('Packaged runtime check timed out');},120000);
-child.on('error',e=>{clearTimeout(timer);console.error(e.message);process.exitCode=1;});child.on('exit',(code,signal)=>{clearTimeout(timer);process.exitCode=code===0&&!signal&&!timedOut?0:1;});
+child.on('error',e=>{clearTimeout(timer);console.error(e.message);process.exitCode=1;});child.on('close',(code,signal)=>{clearTimeout(timer);receipt(lines);process.exitCode=code===0&&!signal&&!timedOut&&received?0:1;});

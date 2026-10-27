@@ -1,5 +1,21 @@
 # 更新记录 / Changelog
 
+## 0.4.1
+
+### English
+
+- Add English and Chinese installers for Linux x64: DEB for Ubuntu / Debian, RPM for Fedora, and AppImage for desktop distributions, alongside Windows EXEs and universal Mac DMGs.
+- Fix AppImage assistant startup so extraction output cannot interrupt the mail protocol, and keep background connections independent of temporary mounts.
+- Store Linux mail and attachments using desktop Secret Service encryption, with no plaintext fallback. Preserve existing Windows and Mac storage.
+- Complete bilingual installation guides and ten direct download links. Verify installed applications and native dependencies before publishing.
+
+### 中文
+
+- 新增 Linux x64 中英文安装包：Ubuntu / Debian 使用 DEB，Fedora 使用 RPM，桌面发行版可选 AppImage，同时提供 Windows EXE 和 Mac 通用 DMG。
+- 修复 AppImage 助手启动，解包输出不再干扰邮件通信，后台连接独立于临时挂载目录。
+- Linux 邮件与附件使用桌面 Secret Service 加密，不回退到明文；保留已有 Windows 和 Mac 存储方式。
+- 完善双语安装指南与十个直接下载入口，发布前检查安装后的程序与原生依赖。
+
 ## 0.4.0
 
 ### English

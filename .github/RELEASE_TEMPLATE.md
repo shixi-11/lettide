@@ -22,7 +22,7 @@ Node.js is included. Chinese downloads use 叠信; English downloads use Lettide
 
 Google and Microsoft require an OAuth app for the first connection; QQ Mail requires an app password. [Account setup](https://github.com/shixi-11/lettide/blob/main/docs/account-setup.en.md). Download the offline translation model once (about 920 MB); email bodies then stay on your device during translation. Linux requires an unlocked Secret Service keyring.
 
-These installers are unsigned previews. The Mac app is not notarized. Automated checks do not replace testing on every physical machine or Linux desktop environment.
+These installers are unsigned previews. The Mac app is not notarized.
 
 ## 简体中文
 
@@ -44,4 +44,4 @@ These installers are unsigned previews. The Mac app is not notarized. Automated 
 
 Google 和 Microsoft 首次连接需要 OAuth 应用，QQ 邮箱需要授权码。[邮箱接入](https://github.com/shixi-11/lettide/blob/main/docs/邮箱接入.md)。离线翻译模型首次下载约 920 MB，之后翻译只在本机处理邮件正文。Linux 需要已解锁的 Secret Service 桌面钥匙串。
 
-当前为未签名预览版，Mac 未经过 Apple 公证。自动检查不能替代每一种实体设备和 Linux 桌面环境的测试。
+当前为未签名预览版，Mac 未经过 Apple 公证。

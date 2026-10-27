@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import {installerAssets} from '../desktop/release-targets.mjs';import {verifyReleaseMetadata,verifyDownload} from '../scripts/Verify-ReleaseDownloads.mjs';
+import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import {installerAssets} from '../desktop/release-targets.mjs';import {verifyReleaseMetadata,verifyDownload,readReleaseMetadata} from '../scripts/Verify-ReleaseDownloads.mjs';
 const pkg=JSON.parse(await readFile(new URL('../desktop/package.json',import.meta.url),'utf8')),expected=installerAssets(pkg.version);
 test('both README languages link every current Windows, Mac and Linux installer',async()=>{
  assert.equal(expected.length,10);for(const file of ['README.md','README.en.md']){const text=await readFile(new URL('../'+file,import.meta.url),'utf8');const links=[...text.matchAll(/https:\/\/github\.com\/shixi-11\/lettide\/releases\/download\/v[^)\s]+/g)].map(m=>m[0]);assert.equal(links.length,10,file+' must have ten direct downloads');for(const asset of expected)assert.ok(links.includes(`https://github.com/shixi-11/lettide/releases/download/v${pkg.version}/${asset.name}`),file+' misses '+asset.name);}
@@ -17,4 +17,9 @@ test('download signatures can span network chunks and invalid DMG trailers are r
  const fetchSplit=async()=>new Response(new ReadableStream({start(c){c.enqueue(Buffer.from('M'));c.enqueue(Buffer.from('Zbody'));c.close();}}),{status:206});assert.equal(await verifyDownload('https://example.test/app.exe','exe',fetchSplit),206);
  await assert.rejects(verifyDownload('https://example.test/app.dmg','dmg',async()=>new Response('not a disk image',{status:206})),/format/);
  let range;assert.equal(await verifyDownload('https://example.test/app.dmg','dmg',async(_url,options)=>{range=options.headers.Range;return new Response('koly'+'.'.repeat(508),{status:206});}),206);assert.equal(range,'bytes=-512');
+});
+
+test('authenticated draft lookup uses the release list when tag lookup returns 404',async()=>{
+ const release={tag_name:'v'+pkg.version,draft:true,assets:[]};const urls=[];const result=await readReleaseMetadata(pkg.version,{Authorization:'Bearer fictional-test-token'},{fetcher:async url=>{urls.push(url);return url.includes('/tags/')?new Response('{}',{status:404}):Response.json([release]);}});assert.deepEqual(result,release);assert.equal(urls.length,2);assert.match(urls[1],/releases\?per_page=100$/);
+ await assert.rejects(readReleaseMetadata(pkg.version,{}, {fetcher:async()=>new Response('{}',{status:404})}),/HTTP 404/);
 });

@@ -98,6 +98,41 @@ jobs:
       - name: Verify packaged native dependencies on Windows and Mac
         if: runner.os != 'Linux'
         run: node scripts/Verify-PackagedRuntime.mjs
+      - name: Install Windows EXE and verify installed app
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $installer = @(Get-ChildItem -LiteralPath output/desktop -Filter '*.exe')
+          if ($installer.Count -ne 1) { throw 'Expected one Windows installer' }
+          $installRoot = Join-Path $env:RUNNER_TEMP 'lettide-installed'
+          $result = Start-Process -FilePath $installer[0].FullName -ArgumentList @('/S', '/currentuser', "/D=$installRoot") -WindowStyle Hidden -Wait -PassThru
+          if ($result.ExitCode -ne 0) { throw 'Windows installation failed' }
+          $env:LETTIDE_TEST_EXECUTABLE = Join-Path $installRoot 'Lettide.exe'
+          if (-not (Test-Path -LiteralPath $env:LETTIDE_TEST_EXECUTABLE -PathType Leaf)) { throw 'Installed executable missing' }
+          node scripts/Verify-PackagedRuntime.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Installed native runtime failed' }
+          node tests/installed-desktop-smoke.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'Installed desktop check failed' }
+      - name: Mount Mac DMG and verify copied application
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          images=(output/desktop/*.dmg)
+          test "${#images[@]}" = 1
+          mount="$RUNNER_TEMP/lettide-dmg"
+          install="$RUNNER_TEMP/lettide-installed"
+          mkdir -p "$mount" "$install"
+          hdiutil attach "${images[0]}" -readonly -nobrowse -mountpoint "$mount"
+          trap 'hdiutil detach "$mount"' EXIT
+          apps=("$mount"/*.app)
+          test "${#apps[@]}" = 1
+          app="$install/$(basename "${apps[0]}")"
+          ditto "${apps[0]}" "$app"
+          binaries=("$app/Contents/MacOS/"*)
+          test "${#binaries[@]}" = 1
+          export LETTIDE_TEST_EXECUTABLE="${binaries[0]}"
+          node scripts/Verify-PackagedRuntime.mjs
+          node tests/installed-desktop-smoke.mjs
       - name: Install Linux DEB and verify UI, keyring, translation runtime and MCP
         if: runner.os == 'Linux'
         shell: bash
@@ -105,12 +140,12 @@ jobs:
           deb=(output/desktop/*.deb)
           test "${#deb[@]}" = 1
           sudo apt-get install -y "./${deb[0]}"
-          export LETTIDE_TEST_EXECUTABLE="$(dpkg -L lettide | awk '/\/Lettide$/ {print; exit}')"
-          test -x "$LETTIDE_TEST_EXECUTABLE"
+          export LETTIDE_TEST_EXECUTABLE="$(readlink -f /usr/bin/Lettide)"
+          test -f "$LETTIDE_TEST_EXECUTABLE" && test -x "$LETTIDE_TEST_EXECUTABLE"
           xvfb-run -a bash scripts/With-LinuxKeyring.sh bash -euc '
             node scripts/Verify-PackagedRuntime.mjs
             node scripts/Verify-PackagedRuntime.mjs --appimage
-            node tests/linux-desktop-smoke.mjs
+            node tests/installed-desktop-smoke.mjs
             node tests/appimage-mcp-smoke.mjs
           '
           rpm -qp --requires output/desktop/*.rpm | grep -q libsecret
@@ -124,8 +159,8 @@ jobs:
             xpid=$!
             trap "kill $xpid" EXIT
             export DISPLAY=:99
-            export LETTIDE_TEST_EXECUTABLE="$(rpm -ql lettide | awk '\''/\/Lettide$/ {print; exit}'\'')"
-            test -x "$LETTIDE_TEST_EXECUTABLE"
+            export LETTIDE_TEST_EXECUTABLE="$(readlink -f /usr/bin/Lettide)"
+            test -f "$LETTIDE_TEST_EXECUTABLE" && test -x "$LETTIDE_TEST_EXECUTABLE"
             bash scripts/With-LinuxKeyring.sh env ELECTRON_RUN_AS_NODE=1 "$LETTIDE_TEST_EXECUTABLE" /workspace/scripts/Verify-PackagedRuntime.mjs
           '
       - name: Upload checked installers to release draft

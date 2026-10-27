@@ -10,7 +10,7 @@ Lettide supports common x64 desktop Linux distributions. Ubuntu 22.04+, Debian 1
 - **Fedora:** download the `.rpm` and install it through the software center, or use `sudo dnf install ./Lettide-VERSION-linux-x64-en.rpm`.
 - **Other supported desktop distributions:** download the `.AppImage`, allow execution in its file properties and open it. Alternatively, run `chmod +x Lettide-VERSION-linux-x64-en.AppImage` first. Node.js is included.
 
-AppImage still uses system graphics libraries, a desktop keyring and FUSE. Without FUSE, run `./Lettide-VERSION-linux-x64-en.AppImage --appimage-extract-and-run`. On systems that restrict the AppImage sandbox, prefer the distribution's DEB/RPM package rather than disabling the browser sandbox.
+AppImage still uses system graphics libraries, a desktop keyring and FUSE. Without FUSE, extract with `./Lettide-VERSION-linux-x64-en.AppImage --appimage-extract`, then run `./squashfs-root/AppRun` and keep the extracted directory in a permanent location. On systems that restrict the AppImage sandbox, prefer the distribution's DEB/RPM package rather than disabling the browser sandbox.
 
 ## Desktop keyring
 
