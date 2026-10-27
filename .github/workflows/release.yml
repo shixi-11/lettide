@@ -78,7 +78,7 @@ jobs:
         if: runner.os == 'Linux'
         run: |
           sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update -qq
-          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y libsecret-tools gnome-keyring dbus-x11 xvfb xauth rpm libarchive-tools libfuse2 fonts-noto-cjk
+          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y libsecret-tools gnome-keyring dbus-x11 xvfb xauth rpm libarchive-tools libfuse2 fonts-wqy-microhei
       - name: Install locked dependencies
         shell: bash
         run: |
