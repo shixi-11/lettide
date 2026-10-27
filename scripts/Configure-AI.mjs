@@ -4,9 +4,11 @@ import path from 'node:path';
 import {spawnSync} from 'node:child_process';
 import {existsSync} from 'node:fs';
 import {fileURLToPath} from 'node:url';
+import {dataDirectory} from '../backend/src/store.js';
+import {runtimeCommand} from '../backend/src/desktop-runtime.js';
 
 const home=os.homedir(),root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
-const appData=path.join(home,'Library','Application Support','Lettide');
+const appData=dataDirectory();
 const backupRoot=path.join(appData,'config-backups',new Date().toISOString().replace(/[:.]/g,'-'));
 const dryRun=process.argv.includes('--dry-run');
 
@@ -24,11 +26,12 @@ function run(exe,args,label){
   const result=spawnSync(exe,args,{stdio:'inherit',env:process.env});
   if(result.error||result.status!==0)throw new Error(`${label} configuration failed${result.error?`: ${result.error.message}`:''}`);
 }
-function mcpTarget(){
+export function mcpTarget(){
   const executable=process.env.LETTIDE_EXECUTABLE;
-  const entry=process.env.LETTIDE_MCP_ENTRY||(executable?path.resolve(path.dirname(executable),'..','Resources','backend','src','mcp.js'):path.join(root,'backend','src','mcp.js'));
+  const entry=process.env.LETTIDE_MCP_ENTRY||(executable?process.platform==='darwin'?path.resolve(path.dirname(executable),'..','Resources','backend','src','mcp.js'):path.join(path.dirname(executable),'resources','backend','src','mcp.js'):path.join(root,'backend','src','mcp.js'));
   const command=executable||process.execPath;
-  return {command,args:[entry],env:executable?{ELECTRON_RUN_AS_NODE:'1'}:{}};
+  if(process.platform==='linux'&&process.env.LETTIDE_APPIMAGE==='1'){const target=runtimeCommand('mcp.js',{appImage:executable});return {...target,env:{ELECTRON_RUN_AS_NODE:'1',...(process.env.LETTIDE_DATA_DIR?{LETTIDE_DATA_DIR:process.env.LETTIDE_DATA_DIR}:{})}};}
+  return {command,args:[entry],env:{...(executable?{ELECTRON_RUN_AS_NODE:'1'}:{}),...(process.env.LETTIDE_DATA_DIR?{LETTIDE_DATA_DIR:process.env.LETTIDE_DATA_DIR}:{})}};
 }
 export function mergeClaudeDesktopConfig(existing,target){
   const config=existing?JSON.parse(existing):{};
@@ -39,7 +42,7 @@ export function mergeClaudeDesktopConfig(existing,target){
   return `${JSON.stringify(config,null,2)}\n`;
 }
 async function configureDesktop(target){
-  const file=path.join(home,'Library','Application Support','Claude','claude_desktop_config.json');
+  const file=process.platform==='darwin'?path.join(home,'Library','Application Support','Claude','claude_desktop_config.json'):path.join(process.env.XDG_CONFIG_HOME||path.join(home,'.config'),'Claude','claude_desktop_config.json');
   let old=null;try{old=await fs.readFile(file,'utf8');}catch(e){if(e.code!=='ENOENT')throw e;}
   if(!old&&!await exists(path.dirname(file))){console.log('Claude Desktop configuration directory not found; skipped.');return;}
   let next;try{next=mergeClaudeDesktopConfig(old,target);}catch{throw new Error('Claude Desktop configuration is invalid; original file was not changed');}
@@ -54,12 +57,12 @@ async function exists(file){try{await fs.access(file);return true;}catch{return 
 async function main(){
   const target=mcpTarget();
   if(!(await exists(target.command)))throw new Error('Lettide executable not found; set LETTIDE_EXECUTABLE or install Node.js.');
-  if(!(await exists(target.args[0])))throw new Error('Lettide MCP entry not found; set LETTIDE_MCP_ENTRY.');
+  if(process.env.LETTIDE_APPIMAGE!=='1'&&!(await exists(target.args[0])))throw new Error('Lettide MCP entry not found; set LETTIDE_MCP_ENTRY.');
   const codex=findCommand('codex');
-  if(codex){await backup(path.join(home,'.codex','config.toml'),'codex-config.toml');const args=['mcp','add','lettide'];if(target.env.ELECTRON_RUN_AS_NODE)args.push('--env','ELECTRON_RUN_AS_NODE=1');args.push('--',target.command,...target.args);run(codex,args,'Codex');}
+  if(codex){await backup(path.join(home,'.codex','config.toml'),'codex-config.toml');const args=['mcp','add','lettide'];for(const[name,value]of Object.entries(target.env))args.push('--env',`${name}=${value}`);args.push('--',target.command,...target.args);run(codex,args,'Codex');}
   else console.log('Codex CLI not found; skipped.');
   const claude=findCommand('claude');
-  if(claude){const configFile=path.join(home,'.claude.json');await backup(configFile,'claude-code.json');let hasEntry=false;try{const config=JSON.parse(await fs.readFile(configFile,'utf8'));hasEntry=Boolean(config?.mcpServers?.lettide);}catch(error){if(error.code!=='ENOENT')throw new Error('Claude Code configuration is invalid; original file was not changed');}if(dryRun)console.log('Claude Code: would configure');else if(hasEntry)run(claude,['mcp','remove','lettide','--scope','user'],'Claude Code removal');const args=['mcp','add','--scope','user','--transport','stdio','lettide'];if(target.env.ELECTRON_RUN_AS_NODE)args.push('--env','ELECTRON_RUN_AS_NODE=1');args.push('--',target.command,...target.args);run(claude,args,'Claude Code');}
+  if(claude){const configFile=path.join(home,'.claude.json');await backup(configFile,'claude-code.json');let hasEntry=false;try{const config=JSON.parse(await fs.readFile(configFile,'utf8'));hasEntry=Boolean(config?.mcpServers?.lettide);}catch(error){if(error.code!=='ENOENT')throw new Error('Claude Code configuration is invalid; original file was not changed');}if(dryRun)console.log('Claude Code: would configure');else if(hasEntry)run(claude,['mcp','remove','lettide','--scope','user'],'Claude Code removal');const args=['mcp','add','--scope','user','--transport','stdio','lettide'];for(const[name,value]of Object.entries(target.env))args.push('--env',`${name}=${value}`);args.push('--',target.command,...target.args);run(claude,args,'Claude Code');}
   else console.log('Claude Code CLI not found; skipped.');
   await configureDesktop(target);
   console.log(dryRun?'Precheck complete; no configuration was changed.':'AI client configuration complete.');

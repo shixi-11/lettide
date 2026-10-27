@@ -11,18 +11,18 @@ async function fixture(t,{english=true,mismatch=false}={}){
  const root=await mkdtemp(path.join(os.tmpdir(),'lettide-release-'));
  t.after(async()=>{if(path.dirname(path.resolve(root))!==path.resolve(os.tmpdir())||!path.basename(root).startsWith('lettide-release-'))throw new Error('Unexpected cleanup path');await rm(root,{recursive:true,force:true})});
  for(const folder of ['scripts','.github','backend','web','desktop'])await mkdir(path.join(root,folder));
- for(const file of ['scripts/Prepare-Release.mjs','.github/RELEASE_TEMPLATE.md'])await copyFile(path.join(source,file),path.join(root,file));
+ for(const file of ['scripts/Prepare-Release.mjs','.github/RELEASE_TEMPLATE.md','desktop/release-targets.mjs'])await copyFile(path.join(source,file),path.join(root,file));
  for(const folder of ['backend','web','desktop'])await writeFile(path.join(root,folder,'package.json'),JSON.stringify({version:mismatch&&folder==='web'?'1.2.4':'1.2.3'}));
  await writeFile(path.join(root,'CHANGELOG.md'),`# Changelog\n\n## 1.2.3\n\n### 中文\n\n- 修复连接。\n${english?'\n### English\n\n- Fix account connections.\n':''}`);
  const run=(extra={})=>spawnSync(process.execPath,[path.join(root,'scripts/Prepare-Release.mjs')],{encoding:'utf8',env:{...process.env,GITHUB_REF_TYPE:'',GITHUB_REF_NAME:'',...extra}});
  return {root,run};
 }
-test('A release includes both complete language sections and four language-specific downloads',async t=>{
+test('A release includes both complete language sections and all ten platform installers',async t=>{
  const {root,run}=await fixture(t);assert.equal(run().status,0);
  const notes=await readFile(path.join(root,'output/release-notes-1.2.3.md'),'utf8');
- assert.match(notes,/### 中文/);assert.match(notes,/### English/);
+ assert.match(notes,/## 简体中文/);assert.match(notes,/## English/);assert.ok(notes.indexOf('## English')<notes.indexOf('## 简体中文'));
  assert.match(notes,/修复连接/);assert.match(notes,/Fix account connections/);
- assert.equal((notes.match(/releases\/download\/v1\.2\.3\//g)||[]).length,4);
+ assert.equal((notes.match(/releases\/download\/v1\.2\.3\//g)||[]).length,20);
  assert.doesNotMatch(notes,/\{\{[A-Z_]+\}\}/);
 });
 test('Missing English prevents publishing a Chinese-only release',async t=>{

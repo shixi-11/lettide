@@ -1,28 +1,47 @@
-## 下载 / Downloads
+# Lettide {{VERSION}} · 叠信
 
-| 系统 / Platform | 简体中文 / Chinese | English / 英文 |
-| --- | --- | --- |
-| Windows 10 / 11 · x64 | [叠信 · 安装程序](https://github.com/shixi-11/lettide/releases/download/v{{VERSION}}/Lettide-{{VERSION}}-win-x64-zh-CN.exe) | [Lettide · Windows installer](https://github.com/shixi-11/lettide/releases/download/v{{VERSION}}/Lettide-{{VERSION}}-win-x64-en.exe) |
-| macOS 12+ · Apple Silicon + Intel | [叠信 · DMG](https://github.com/shixi-11/lettide/releases/download/v{{VERSION}}/Lettide-{{VERSION}}-mac-universal-zh-CN.dmg) | [Lettide · Mac DMG](https://github.com/shixi-11/lettide/releases/download/v{{VERSION}}/Lettide-{{VERSION}}-mac-universal-en.dmg) |
+[English](#english) · [简体中文](#简体中文)
 
-{{CHANGES}}
+## English
 
-## Installation and account setup
+### Downloads
 
-Run the Windows installer, or open the DMG and drag the app into Applications. Node.js is included. Chinese installers use the name 叠信; English installers use Lettide. You can switch the interface language in Settings.
+{{DOWNLOADS_EN}}
 
-Gmail and Microsoft 365 still require an OAuth app configuration for the first connection. QQ Mail requires an app password. [Account setup guide](https://github.com/shixi-11/lettide/blob/main/docs/account-setup.en.md)
+### What's new
 
-After a one-time offline model download (about 920 MB), click Translated or Compare to translate on this device. Model downloads contain no email text; translation never uploads the body or falls back to an online service.
+{{CHANGES_EN}}
 
-These preview installers are unsigned, and the Mac app is not notarized. Successful builds do not establish live mailbox verification or a physical Mac UI acceptance test.
+### Install and connect
 
-## 安装与连接
+- **Windows:** download and run the EXE installer.
+- **Mac:** open the DMG and drag Lettide into Applications.
+- **Linux:** use DEB on Ubuntu / Debian, RPM on Fedora, or AppImage on other supported desktop distributions. Linux builds are x64. [Linux installation](https://github.com/shixi-11/lettide/blob/main/docs/linux.en.md)
 
-Windows 双击安装程序；macOS 打开 DMG 后拖入「应用程序」。无需另装 Node.js。中文版显示「叠信」，英文版显示「Lettide」，应用内可切换语言。
+Node.js is included. Chinese downloads use 叠信; English downloads use Lettide. Change the interface language in Settings.
 
-Gmail / Microsoft 365 首次连接仍需 OAuth 应用配置，QQ 需要邮箱授权码。[邮箱接入指南](https://github.com/shixi-11/lettide/blob/main/docs/邮箱接入.md)
+Google and Microsoft require an OAuth app for the first connection; QQ Mail requires an app password. [Account setup](https://github.com/shixi-11/lettide/blob/main/docs/account-setup.en.md). Download the offline translation model once (about 920 MB); email bodies then stay on your device during translation. Linux requires an unlocked Secret Service keyring.
 
-首次下载约 920 MB 离线模型后，点击「译文」或「对照」在本机翻译。模型下载不包含邮件正文，翻译不会上传正文或自动改用在线服务。
+These installers are unsigned previews. The Mac app is not notarized. Automated checks do not replace testing on every physical machine or Linux desktop environment.
 
-当前为未签名预览版，Mac 未经过 Apple 公证。安装包构建通过不等于真实邮箱或 Mac 真机界面已验收。
+## 简体中文
+
+### 下载安装
+
+{{DOWNLOADS_ZH}}
+
+### 本次更新
+
+{{CHANGES_ZH}}
+
+### 安装与连接
+
+- **Windows：**下载并双击 EXE 安装程序。
+- **Mac：**打开 DMG，把叠信拖入「应用程序」。
+- **Linux：**Ubuntu / Debian 使用 DEB，Fedora 使用 RPM，其他支持的桌面发行版可选择 AppImage。Linux 安装包为 64 位 x64。[Linux 安装说明](https://github.com/shixi-11/lettide/blob/main/docs/linux.md)
+
+内置 Node.js，无需另装运行环境。中文下载显示「叠信」，英文下载显示「Lettide」，界面语言可在设置中切换。
+
+Google 和 Microsoft 首次连接需要 OAuth 应用，QQ 邮箱需要授权码。[邮箱接入](https://github.com/shixi-11/lettide/blob/main/docs/邮箱接入.md)。离线翻译模型首次下载约 920 MB，之后翻译只在本机处理邮件正文。Linux 需要已解锁的 Secret Service 桌面钥匙串。
+
+当前为未签名预览版，Mac 未经过 Apple 公证。自动检查不能替代每一种实体设备和 Linux 桌面环境的测试。

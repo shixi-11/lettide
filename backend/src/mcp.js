@@ -6,11 +6,12 @@ import {readFile} from 'node:fs/promises';
 import {randomUUID} from 'node:crypto';
 import {fileURLToPath} from 'node:url';
 import {Store,dataDirectory} from './store.js';
+import {runtimeCommand} from './desktop-runtime.js';
 import {waitForBackend,requestWithReconnect} from './mcp-connection.js';
 
 const base='http://127.0.0.1:47831',pending=new Map();let headers;
 async function refreshAuth(){const current=new Store({readOnly:true});await current.open();const token=current.state.token;current.state=null;await current.close();headers={'authorization':`Bearer ${token}`,'content-type':'application/json'};}
-async function startBackend(){const entry=fileURLToPath(new URL('./server.js',import.meta.url)),child=spawn(process.execPath,[entry],{env:{...process.env,ELECTRON_RUN_AS_NODE:'1'},detached:true,windowsHide:true,stdio:'ignore'});child.once('error',()=>console.error('[Lettide MCP] Could not launch the local service process.'));child.unref();return child;}
+async function startBackend(){const entry=fileURLToPath(new URL('./server.js',import.meta.url)),target=runtimeCommand(entry),child=spawn(target.command,target.args,{env:{...process.env,ELECTRON_RUN_AS_NODE:'1'},detached:true,windowsHide:true,stdio:'ignore'});child.once('error',()=>console.error('[Lettide MCP] Could not launch the local service process.'));child.unref();return child;}
 async function reconnect(){await waitForBackend(base,{startBackend});await refreshAuth();}
 await waitForBackend(base,{startBackend});await refreshAuth();const health=await fetch(base+'/api/status',{headers,signal:AbortSignal.timeout(5000)});if(!health.ok)throw new Error(health.status===401?`The Lettide service on ${base} uses different data than ${dataDirectory()}. Quit the other Lettide service, or give every client the same LETTIDE_DATA_DIR.`:`Shared Lettide service authentication failed (${health.status})`);
 async function api(route,method='GET',body,extra={}){const makeOptions=()=>({method,headers:{...headers,...extra},...(body?{body:JSON.stringify(body)}:{}),signal:AbortSignal.timeout(route==='/api/sync'?180000:30000)});let r=await requestWithReconnect(base+route,makeOptions,{reconnect});if(r.status===401){await refreshAuth();r=await requestWithReconnect(base+route,makeOptions,{reconnect});}const txt=await r.text();if(!r.ok)throw new Error(`Backend request failed (${r.status})`);return txt?JSON.parse(txt):null;}

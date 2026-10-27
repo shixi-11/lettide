@@ -1,25 +1,25 @@
 # 发布规范 / Release conventions
 
-## 中文
-
-- 发布标题统一使用「叠信 · Lettide 版本号」。发布说明必须包含下载表、中文更新、英文更新和两种语言的安装与连接指引。
-- README 按语言分成 `README.md` 与 `README.en.md`，互相链接；接入指南同样提供中文和英文。英文入口不能只指向中文操作说明。
-- `CHANGELOG.md` 每个版本分别填写 `### 中文` 与 `### English`。英文须完整表达对应版本的变化和限制，不以一句英文摘要替代。
-- 安装包文件名保持 `Lettide-版本-系统-架构-语言`；GitHub 下载标签同时写出平台与「简体中文 / Chinese」或「English / 英文」。图标不嵌入文字，中文版安装名为「叠信」，英文版为「Lettide」。
-- 同步 backend、web、desktop 三个包的版本号及 README 下载链接，完成检查并提交、推送源码，再推送同版本标签。禁止用同一标签覆盖不同程序代码。
-- `node scripts/Prepare-Release.mjs --check` 验证版本与双语更新记录；去掉 `--check` 会生成发布正文。模板位于 `.github/RELEASE_TEMPLATE.md`。
-- 标签触发的工作流先生成双语 Release，再构建四种安装包并添加双语下载标签。只修改文档时，可手动选择 `notes_only` 更新说明，不重建或覆盖现有安装包。
-- 仓库保留既有可见性；不上传真实邮箱、邮件、附件、凭据、客户端备份或个人机器路径。明确区分构建、虚构数据检查和真实账号验收。
-
 ## English
 
-- Use the title “叠信 · Lettide VERSION”. Every release includes a download table, complete Chinese and English changes, and account setup and installation instructions in both languages.
-- Keep separate, cross-linked Chinese and English READMEs and setup guides. English entry points must lead to English instructions.
-- Every version in `CHANGELOG.md` needs `### 中文` and `### English` sections. Translate the changes and limitations fully rather than replacing them with a short English summary.
-- Keep installer filenames in the form `Lettide-VERSION-PLATFORM-ARCH-LANGUAGE`. Asset labels identify the platform and “简体中文 / Chinese” or “English / 英文”. Keep the icon free of text; Chinese installers use 叠信 and English installers use Lettide.
-- Update all three package versions and README download links together. Check, commit and push the source before pushing its version tag. Never reuse a tag for different application code.
-- Run `node scripts/Prepare-Release.mjs --check` to validate versions and bilingual notes, or omit `--check` to generate the release body from `.github/RELEASE_TEMPLATE.md`.
-- Tag builds prepare the bilingual release before uploading four labeled installers. For documentation-only changes, dispatch the workflow with `notes_only` enabled; existing installers stay intact.
-- Preserve repository visibility and exclude real mail, attachments, credentials, client backups and personal machine paths. Distinguish successful builds and fictional fixtures from live account acceptance tests.
+- Keep one Release per version. English and Chinese sections each include the complete download table, changes, installation and account setup. English comes first.
+- `desktop/release-targets.mjs` defines the supported installer names: two Windows EXEs, two universal Mac DMGs and six Linux x64 DEB/RPM/AppImage files.
+- Keep `README.md` and `README.en.md` linked to each other and to all ten current-version installers. Linux and account setup guides are available in both languages.
+- Bump backend, web and desktop versions together and add full English and Chinese changelog sections. Run `node --test backend/tests/*.test.js` and `node --test tests/release-notes.test.mjs tests/downloads.test.mjs`, then build the interface.
+- Commit and push the exact source revision before its version tag. Do not change an existing tag. Each installer is built from that tag with locked dependencies.
+- The workflow creates a draft, checks native storage and packaged dependencies, installs the Linux DEB for UI/MCP checks, checks AppImage reconnects and tests the RPM runtime in Fedora. Only complete builds are uploaded.
+- The final job requires all ten installers, publishes the bilingual preview Release and requests every public download URL. A missing or invalid installer fails publication checks. Notes-only runs update existing notes without replacing installers or publishing drafts.
+- Use `node scripts/Verify-ReleaseDownloads.mjs` with `GH_TOKEN` if API rate limits require authentication. Download requests themselves are unauthenticated. `--metadata-only` checks completeness before a draft is published.
+- Preserve Windows DPAPI and macOS Keychain data. Linux uses Secret Service and must never fall back to a plaintext key. Test keyrings use an isolated HOME and D-Bus session; do not run test cleanup against personal keyring items.
 
-[GitHub CLI: create releases](https://cli.github.com/manual/gh_release_create) · [Edit release notes](https://cli.github.com/manual/gh_release_edit)
+## 简体中文
+
+- 同一版本只用一个 Release。英文在前、中文在后，每个区块都有完整下载表、更新、安装和邮箱连接说明。
+- `desktop/release-targets.mjs` 定义安装文件名：Windows 两个 EXE、Mac 两个通用 DMG、Linux x64 六个 DEB/RPM/AppImage，共十个文件。
+- `README.md` 与 `README.en.md` 互相链接，并提供当前版本的十个直接下载入口。Linux 与邮箱接入指南均有中英文版。
+- backend、web、desktop 同步更新版本号，补齐中英文更新记录。运行后台测试、发布说明与下载测试，再构建界面。
+- 源码先提交并推送，再推同版本标签，不改写旧标签。各安装包使用该标签和锁定依赖构建。
+- 工作流先创建草稿，验证系统存储与原生依赖，在 Linux 安装 DEB 检查界面和 MCP，验证 AppImage 重连，并在 Fedora 检查 RPM 运行环境。只有通过检查的包才上传。
+- 最后一个任务确认十个文件齐全，再公开双语预览 Release，并真实请求每个下载链接。缺少文件或格式不符会导致发布检查失败。仅说明更新不会替换安装包或公开草稿。
+- `node scripts/Verify-ReleaseDownloads.mjs` 核对下载；API 限额时可设置 `GH_TOKEN`，文件下载本身仍使用未登录请求。公开草稿前先用 `--metadata-only` 检查完整性。
+- 保留 Windows DPAPI 与 macOS Keychain 数据格式。Linux 使用 Secret Service，不允许明文密钥回退。测试钥匙串使用隔离 HOME 和 D-Bus 会话，不清理个人钥匙串条目。

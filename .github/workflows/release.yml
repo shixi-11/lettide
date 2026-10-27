@@ -20,11 +20,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Validate and generate bilingual notes
+      - name: Validate bilingual notes and download paths
         run: |
-          node --test tests/release-notes.test.mjs
+          node --test tests/release-notes.test.mjs tests/downloads.test.mjs
           node scripts/Prepare-Release.mjs
-      - name: Create or update bilingual release
+      - name: Prepare release draft
         env:
           GH_TOKEN: ${{ github.token }}
           NOTES_ONLY: ${{ inputs.notes_only }}
@@ -32,15 +32,14 @@ jobs:
         run: |
           version="$(node -p "require('./desktop/package.json').version")"
           tag="v$version"
-          tag_commit="$(git rev-parse "$tag^{commit}")"
-          if [ "$NOTES_ONLY" != "true" ] && [ "$tag_commit" != "$(git rev-parse HEAD)" ]; then
-            echo "Installer builds must use the exact version tag. Use notes_only for documentation updates."
+          if [ "$NOTES_ONLY" != "true" ] && [ "$(git rev-parse "$tag^{commit}")" != "$(git rev-parse HEAD)" ]; then
+            echo "Installer builds must use their exact version tag."
             exit 1
           fi
           if gh release view "$tag" >/dev/null 2>&1; then
             gh release edit "$tag" --title "叠信 · Lettide $version" --notes-file "output/release-notes-$version.md"
           else
-            gh release create "$tag" --verify-tag --prerelease --title "叠信 · Lettide $version" --notes-file "output/release-notes-$version.md"
+            gh release create "$tag" --verify-tag --draft --prerelease --title "叠信 · Lettide $version" --notes-file "output/release-notes-$version.md"
           fi
   build:
     needs: prepare_release
@@ -48,7 +47,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, macos-latest]
+        os: [windows-latest, macos-latest, ubuntu-22.04]
         language: [zh-CN, en]
     runs-on: ${{ matrix.os }}
     steps:
@@ -59,6 +58,11 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
+      - name: Linux packaging and isolated keyring dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y libsecret-tools gnome-keyring dbus-x11 xvfb xauth rpm libarchive-tools libfuse2 fonts-noto-cjk
       - name: Install locked dependencies
         shell: bash
         run: |
@@ -66,35 +70,88 @@ jobs:
             (cd "$folder" && pnpm install --frozen-lockfile)
           done
           cd desktop && node node_modules/electron/install.js
-      - name: Backend checks, including real OS protected storage
+      - name: Backend checks, including native OS storage
         shell: bash
-        run: node --test backend/tests/*.test.js
+        run: |
+          if [ "${{ runner.os }}" = Linux ]; then
+            bash scripts/With-LinuxKeyring.sh env LETTIDE_TEST_SECRET_SERVICE=1 node --test backend/tests/*.test.js
+          else
+            node --test backend/tests/*.test.js
+          fi
       - name: Build interface
         working-directory: web
         run: pnpm build
-      - name: Build desktop installer
+      - name: Build desktop installers
         shell: bash
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: 'false'
         run: |
-          args=""
-          if [ "${{ runner.os }}" = "macOS" ]; then args="$args --mac"; fi
-          if [ "${{ matrix.language }}" = "en" ]; then args="$args --en"; fi
-          node scripts/Build-Desktop.mjs $args
-      - name: Verify packaged native translation dependencies
+          args=()
+          if [ "${{ runner.os }}" = macOS ]; then args+=(--mac); fi
+          if [ "${{ runner.os }}" = Linux ]; then args+=(--linux); fi
+          if [ "${{ matrix.language }}" = en ]; then args+=(--en); fi
+          node scripts/Build-Desktop.mjs "${args[@]}"
+      - name: Verify packaged native dependencies on Windows and Mac
+        if: runner.os != 'Linux'
         run: node scripts/Verify-PackagedRuntime.mjs
-      - name: Publish release installers
+      - name: Install Linux DEB and verify UI, keyring, translation runtime and MCP
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          deb=(output/desktop/*.deb)
+          test "${#deb[@]}" = 1
+          sudo apt-get install -y "./${deb[0]}"
+          export LETTIDE_TEST_EXECUTABLE="$(dpkg -L lettide | awk '/\/Lettide$/ {print; exit}')"
+          test -x "$LETTIDE_TEST_EXECUTABLE"
+          xvfb-run -a bash scripts/With-LinuxKeyring.sh bash -euc '
+            node scripts/Verify-PackagedRuntime.mjs
+            node scripts/Verify-PackagedRuntime.mjs --appimage
+            node tests/linux-desktop-smoke.mjs
+            node tests/appimage-mcp-smoke.mjs
+          '
+          rpm -qp --requires output/desktop/*.rpm | grep -q libsecret
+      - name: Install RPM and verify native runtime on Fedora
+        if: runner.os == 'Linux' && matrix.language == 'en'
+        shell: bash
+        run: |
+          docker run --rm -v "$PWD:/workspace:ro" -w /workspace fedora:44 bash -euc '
+            dnf install -y /workspace/output/desktop/*.rpm dbus-daemon xorg-x11-server-Xvfb
+            Xvfb :99 -screen 0 1280x720x24 >/dev/null 2>&1 &
+            xpid=$!
+            trap "kill $xpid" EXIT
+            export DISPLAY=:99
+            export LETTIDE_TEST_EXECUTABLE="$(rpm -ql lettide | awk '\''/\/Lettide$/ {print; exit}'\'')"
+            test -x "$LETTIDE_TEST_EXECUTABLE"
+            bash scripts/With-LinuxKeyring.sh env ELECTRON_RUN_AS_NODE=1 "$LETTIDE_TEST_EXECUTABLE" /workspace/scripts/Verify-PackagedRuntime.mjs
+          '
+      - name: Upload checked installers to release draft
         env:
           GH_TOKEN: ${{ github.token }}
         shell: bash
         run: |
-          shopt -s nullglob
-          files=(output/desktop/*.exe output/desktop/*.dmg)
+          version="$(node -p "require('./desktop/package.json').version")"
+          tag="v$version"
+          node --input-type=module -e "import {installerAssets} from './desktop/release-targets.mjs'; console.log(installerAssets('$version').filter(a=>a.platform==='${{ runner.os == 'Windows' && 'win' || runner.os == 'macOS' && 'mac' || 'linux' }}'&&a.language==='${{ matrix.language }}').map(a=>a.name+'#'+a.label).join('\n'))" > output/installers-to-publish.txt
+          while IFS= read -r item; do
+            name="${item%%#*}"
+            test -f "output/desktop/$name"
+            gh release upload "$tag" "output/desktop/$item" --clobber
+          done < output/installers-to-publish.txt
+  publish:
+    needs: [prepare_release, build]
+    if: ${{ inputs.notes_only != true }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Check complete release, publish and verify every public download
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          node scripts/Verify-ReleaseDownloads.mjs --metadata-only
           tag="$(node -p "'v'+require('./desktop/package.json').version")"
-          language="简体中文 / Chinese"
-          if [ "${{ matrix.language }}" = "en" ]; then language="English / 英文"; fi
-          platform="Windows x64"
-          if [ "${{ runner.os }}" = "macOS" ]; then platform="macOS · Apple Silicon + Intel"; fi
-          for file in "${files[@]}"; do
-            gh release upload "$tag" "$file#$platform · $language" --clobber
-          done
+          gh release edit "$tag" --draft=false --prerelease
+          node scripts/Verify-ReleaseDownloads.mjs

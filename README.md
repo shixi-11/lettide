@@ -4,16 +4,19 @@
 
 ## 下载安装
 
-当前预览版本 **0.3.13**。[下载页](https://github.com/shixi-11/lettide/releases/tag/v0.3.13) · [更新记录](CHANGELOG.md) · [English](README.en.md)
+当前预览版本 **0.4.0**。[下载页](https://github.com/shixi-11/lettide/releases/tag/v0.4.0) · [更新记录](CHANGELOG.md) · [English](README.en.md)
 
-| 系统 | 中文版「叠信」 | English “Lettide” |
+| 系统与安装包 | 简体中文「叠信」 | English “Lettide” |
 | --- | --- | --- |
-| Windows 10 / 11，64 位 | [下载安装程序](https://github.com/shixi-11/lettide/releases/download/v0.3.13/Lettide-0.3.13-win-x64-zh-CN.exe) | [Download installer](https://github.com/shixi-11/lettide/releases/download/v0.3.13/Lettide-0.3.13-win-x64-en.exe) |
-| macOS 12+，Apple 芯片与 Intel 通用 | [下载 DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.13/Lettide-0.3.13-mac-universal-zh-CN.dmg) | [Download DMG](https://github.com/shixi-11/lettide/releases/download/v0.3.13/Lettide-0.3.13-mac-universal-en.dmg) |
+| Windows 10 / 11 · 64 位 | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.4.0/Lettide-0.4.0-win-x64-zh-CN.exe) | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.4.0/Lettide-0.4.0-win-x64-en.exe) |
+| macOS 13+ · Apple 芯片与 Intel | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.4.0/Lettide-0.4.0-mac-universal-zh-CN.dmg) | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.4.0/Lettide-0.4.0-mac-universal-en.dmg) |
+| Linux · 64 位 · Ubuntu / Debian · DEB | [下载 deb](https://github.com/shixi-11/lettide/releases/download/v0.4.0/Lettide-0.4.0-linux-x64-zh-CN.deb) | [Download deb](https://github.com/shixi-11/lettide/releases/download/v0.4.0/Lettide-0.4.0-linux-x64-en.deb) |
+| Linux · 64 位 · Fedora · RPM | [下载 rpm](https://github.com/shixi-11/lettide/releases/download/v0.4.0/Lettide-0.4.0-linux-x64-zh-CN.rpm) | [Download rpm](https://github.com/shixi-11/lettide/releases/download/v0.4.0/Lettide-0.4.0-linux-x64-en.rpm) |
+| Linux · 64 位 · 通用桌面发行版 · AppImage | [下载 AppImage](https://github.com/shixi-11/lettide/releases/download/v0.4.0/Lettide-0.4.0-linux-x64-zh-CN.AppImage) | [Download AppImage](https://github.com/shixi-11/lettide/releases/download/v0.4.0/Lettide-0.4.0-linux-x64-en.AppImage) |
 
-Windows 双击安装；macOS 打开 DMG 后把应用拖入「应用程序」。内置运行环境，无需安装 Node.js。中文版与英文版功能相同，可在设置中切换中文、English 或跟随系统。
+Windows 双击安装；macOS 打开 DMG 后把应用拖入「应用程序」；Linux 根据发行版选择 DEB、RPM 或 AppImage，详见 [Linux 安装](docs/linux.md)。内置运行环境，无需安装 Node.js。中文版与英文版功能相同，可在设置中切换中文、English 或跟随系统。
 
-安装包由 GitHub Actions 构建上传，对应任务完成后链接生效。当前为未签名预览版：Windows 可能提示未知发布者；macOS 未经过 Apple 公证，首次打开可能需在系统「隐私与安全性」中允许。Mac 自动构建与 Keychain 测试不等于真机界面验收。
+安装包内置运行环境；下载页按系统和语言提供直接下载入口。当前为未签名预览版：Windows 可能提示未知发布者；macOS 未经过 Apple 公证，首次打开可能需在系统「隐私与安全性」中允许。Mac 自动构建与 Keychain 测试不等于真机界面验收。
 
 ## 开始使用
 
@@ -45,7 +48,7 @@ Windows 双击安装；macOS 打开 DMG 后把应用拖入「应用程序」。�
 
 离线模型使用 Meta NLLB-200 的量化 ONNX 版本；详见 [模型来源与许可](docs/translation-model.md)。高级助手任务仍可显式选择 MCP 翻译队列。
 
-Windows 使用当前用户 DPAPI 保护随机密钥，macOS 使用 Keychain 保存随机密钥；邮件缓存使用 AES-256-GCM 加密。数据分别位于 `%USERPROFILE%/.lettide`（0.3.12 起；旧目录数据首次启动时自动复制过来，原处保留；可用环境变量 `LETTIDE_DATA_DIR` 指定） 与 `~/Library/Application Support/Lettide`。不要上传数据目录、令牌、授权码、客户端备份或 OAuth 密钥。
+Windows 使用当前用户 DPAPI 保护随机密钥，macOS 使用 Keychain，Linux 使用 Secret Service 桌面钥匙串；邮件缓存使用 AES-256-GCM 加密。数据分别位于 `%USERPROFILE%/.lettide`（0.3.12 起；旧目录数据首次启动时自动复制过来，原处保留；可用环境变量 `LETTIDE_DATA_DIR` 指定）、`~/Library/Application Support/Lettide`（macOS）与 `${XDG_DATA_HOME:-~/.local/share}/Lettide`（Linux）。不要上传数据目录、令牌、授权码、客户端备份或 OAuth 密钥。
 
 ## 开发与发布
 
@@ -60,6 +63,8 @@ node scripts/Build-Desktop.mjs          # Windows 中文
 node scripts/Build-Desktop.mjs --en     # Windows English
 node scripts/Build-Desktop.mjs --mac    # 在 macOS 构建通用中文版
 node scripts/Build-Desktop.mjs --mac --en
+node scripts/Build-Desktop.mjs --linux     # Linux 中文：DEB / RPM / AppImage
+node scripts/Build-Desktop.mjs --linux --en
 ```
 
 界面测试只用隔离的虚构数据。`tests/ui-smoke.mjs` 使用 Playwright，以 `PLAYWRIGHT_MODULE` 指向本机安装的模块。`output` 不进入 Git。

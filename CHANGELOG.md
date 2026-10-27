@@ -1,5 +1,23 @@
 # 更新记录 / Changelog
 
+## 0.4.0
+
+### English
+
+- Add Linux x64 DEB, RPM and AppImage downloads in English and Chinese, alongside Windows installers and universal Mac DMGs.
+- Encrypt Linux mail and attachments with a random key held by the desktop Secret Service keyring. Missing or locked keyrings never trigger a plaintext fallback or a reset of existing data.
+- Configure Codex and Claude Code from Linux, and keep AppImage assistant connections independent of temporary mount locations.
+- Provide complete English and Chinese download tables and Linux installation guides. Use macOS 13+ as the supported minimum for the bundled Electron runtime.
+- Publish a release only after every installer passes its checks; verify all ten public download links after publication.
+
+### 中文
+
+- 新增 Linux x64 的 DEB、RPM、AppImage 中英文安装包，同时保留 Windows 安装程序和 Mac 通用 DMG。
+- Linux 邮件与附件使用桌面 Secret Service 钥匙串中的随机密钥加密；钥匙串缺失或锁定时不回退到明文，也不重置已有数据。
+- Linux 可配置 Codex 与 Claude Code，AppImage 的助手连接不再依赖临时挂载路径。
+- 补齐中英文下载表和 Linux 安装说明，按内置 Electron 的支持范围明确 macOS 13+ 最低版本。
+- 所有安装包检查通过后才公开发布页，并在发布后核验十个直接下载链接。
+
 ## 0.3.13
 
 ### 中文

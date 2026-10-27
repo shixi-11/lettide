@@ -190,4 +190,5 @@ export async function startService(options={}){
  const timer=setInterval(runPoll,60000);timer.unref();const initial=setTimeout(runPoll,1500);initial.unref();
  return {app,listener,stop};
 }
-if(process.argv[1]&&fileURLToPath(import.meta.url)===path.resolve(process.argv[1])){const service=await startService({exitOnQuit:true});const stop=()=>{service.stop().finally(()=>process.exit(0));};process.on('SIGINT',stop);process.on('SIGTERM',stop);}
+export async function runService(){const service=await startService({exitOnQuit:true});const stop=()=>{service.stop().finally(()=>process.exit(0));};process.on('SIGINT',stop);process.on('SIGTERM',stop);return service;}
+if(process.argv[1]&&fileURLToPath(import.meta.url)===path.resolve(process.argv[1]))await runService();
