@@ -19,6 +19,9 @@ on:
         default: false
 permissions:
   contents: write
+concurrency:
+  group: lettide-desktop-releases
+  cancel-in-progress: false
 jobs:
   prepare_release:
     runs-on: ubuntu-latest
