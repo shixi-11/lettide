@@ -1,0 +1,19 @@
+name: Public installer downloads
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  downloads:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - name: Verify bilingual links and public installer files
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          node --test tests/downloads.test.mjs tests/release-notes.test.mjs
+          node scripts/Verify-ReleaseDownloads.mjs

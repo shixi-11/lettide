@@ -7,12 +7,21 @@ export function verifyReleaseMetadata(release,version){
 export async function verifyDownload(url,format,fetcher=fetch){
  const magic={exe:Buffer.from('MZ'),deb:Buffer.from('!<arch>\n'),rpm:Buffer.from([0xed,0xab,0xee,0xdb]),AppImage:Buffer.from([0x7f,0x45,0x4c,0x46]),dmg:Buffer.from('koly')}[format];
  if(!magic)throw Error('Unsupported installer format: '+format);
- const r=await fetcher(url,{headers:{Range:format==='dmg'?'bytes=-512':'bytes=0-63','User-Agent':'Lettide-download-check'},redirect:'follow',signal:AbortSignal.timeout(45000)});
+ let range='bytes=0-63',expectedRange;
+ if(format==='dmg'){
+  const head=await fetcher(url,{method:'HEAD',headers:{'User-Agent':'Lettide-download-check'},redirect:'follow',signal:AbortSignal.timeout(45000)});
+  if(!head.ok)throw Error('Download HEAD HTTP '+head.status+': '+path.basename(url));
+  const size=Number(head.headers.get('content-length'));if(!Number.isSafeInteger(size)||size<512)throw Error('Installer format metadata is invalid: '+path.basename(url));
+  // GitHub release storage rejects suffix ranges, but accepts absolute offsets.
+  range=`bytes=${size-512}-${size-1}`;expectedRange=`bytes ${size-512}-${size-1}/${size}`;
+ }
+ const r=await fetcher(url,{headers:{Range:range,'User-Agent':'Lettide-download-check'},redirect:'follow',signal:AbortSignal.timeout(45000)});
  if(!r.ok){await r.body?.cancel();throw Error('Download HTTP '+r.status+': '+path.basename(url));}
+ if(format==='dmg'&&(r.status!==206||r.headers.get('content-range')!==expectedRange)){await r.body?.cancel();throw Error('Installer range response does not match the DMG footer');}
  if(/text\/html/i.test(r.headers.get('content-type')||'')){await r.body?.cancel();throw Error('Download returned an HTML page: '+path.basename(url));}
- const reader=r.body?.getReader();if(!reader)throw Error('Download has no data');let parts=[],length=0;
- try{while(length<magic.length){const part=await reader.read();if(part.done)break;parts.push(Buffer.from(part.value));length+=part.value.length;}}finally{await reader.cancel();}
- if(!length)throw Error('Download is empty');const bytes=Buffer.concat(parts);
+ const reader=r.body?.getReader();if(!reader)throw Error('Download has no data');let parts=[],length=0;const required=format==='dmg'?512:magic.length;
+ try{while(length<required){const part=await reader.read();if(part.done)break;parts.push(Buffer.from(part.value));length+=part.value.length;}}finally{await reader.cancel();}
+ if(!length)throw Error('Download is empty');if(length<required)throw Error('Installer data is truncated');const bytes=Buffer.concat(parts);
  if(!bytes.subarray(0,magic.length).equals(magic))throw Error('Installer format does not match: '+path.basename(url));
  return r.status;
 }

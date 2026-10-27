@@ -15,8 +15,12 @@ test('download verification rejects a broken link, HTML login page and wrong ins
 
 test('download signatures can span network chunks and invalid DMG trailers are rejected',async()=>{
  const fetchSplit=async()=>new Response(new ReadableStream({start(c){c.enqueue(Buffer.from('M'));c.enqueue(Buffer.from('Zbody'));c.close();}}),{status:206});assert.equal(await verifyDownload('https://example.test/app.exe','exe',fetchSplit),206);
- await assert.rejects(verifyDownload('https://example.test/app.dmg','dmg',async()=>new Response('not a disk image',{status:206})),/format/);
- let range;assert.equal(await verifyDownload('https://example.test/app.dmg','dmg',async(_url,options)=>{range=options.headers.Range;return new Response('koly'+'.'.repeat(508),{status:206});}),206);assert.equal(range,'bytes=-512');
+ const diskImage=body=>async(_url,options)=>options.method==='HEAD'?new Response(null,{headers:{'content-length':'1024'}}):new Response(body,{status:206,headers:{'content-range':'bytes 512-1023/1024'}});
+ await assert.rejects(verifyDownload('https://example.test/app.dmg','dmg',diskImage('not a disk image'+'.'.repeat(512))),/format/);
+ const requests=[];assert.equal(await verifyDownload('https://example.test/app.dmg','dmg',async(_url,options)=>{requests.push({method:options.method||'GET',range:options.headers.Range});if(options.method==='HEAD')return new Response(null,{headers:{'content-length':'1024'}});if(options.headers.Range.startsWith('bytes=-'))return new Response('Unsupported range',{status:501});return new Response('koly'+'.'.repeat(508),{status:206,headers:{'content-range':'bytes 512-1023/1024'}});}),206);assert.deepEqual(requests,[{method:'HEAD',range:undefined},{method:'GET',range:'bytes=512-1023'}]);
+ await assert.rejects(verifyDownload('https://example.test/app.dmg','dmg',async()=>new Response(null,{status:503})),/HEAD HTTP 503/);
+ await assert.rejects(verifyDownload('https://example.test/app.dmg','dmg',diskImage('koly')),/truncated/);
+ for(const response of [()=>new Response('koly'+'.'.repeat(508),{status:200}),()=>new Response('koly'+'.'.repeat(508),{status:206,headers:{'content-range':'bytes 0-511/1024'}})])await assert.rejects(verifyDownload('https://example.test/app.dmg','dmg',async(_url,options)=>options.method==='HEAD'?new Response(null,{headers:{'content-length':'1024'}}):response()),/range response/);
 });
 
 test('authenticated draft lookup uses the release list when tag lookup returns 404',async()=>{
