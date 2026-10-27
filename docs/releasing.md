@@ -12,6 +12,8 @@
 - Use `node scripts/Verify-ReleaseDownloads.mjs` with `GH_TOKEN` if API rate limits require authentication. Download requests themselves are unauthenticated. `--metadata-only` checks completeness before a draft is published.
 - Preserve Windows DPAPI and macOS Keychain data. Linux uses Secret Service and must never fall back to a plaintext key. Test keyrings use an isolated HOME and D-Bus session; do not run test cleanup against personal keyring items.
 
+- For an infrastructure-only retry while a release remains a draft, dispatch the current workflow with `release_ref` set to its existing version tag and `platform` set to `linux`. The checkout must still match that exact tag, published assets remain immutable, and the final job still requires all ten files.
+
 ## 简体中文
 
 - 同一版本只用一个 Release。英文在前、中文在后，每个区块都有完整下载表、更新、安装和邮箱连接说明。
@@ -23,3 +25,5 @@
 - 最后一个任务确认十个文件齐全，再公开双语预览 Release，并真实请求每个下载链接。缺少文件或格式不符会导致发布检查失败。仅说明更新不会替换安装包或公开草稿。
 - `node scripts/Verify-ReleaseDownloads.mjs` 核对下载；API 限额时可设置 `GH_TOKEN`，文件下载本身仍使用未登录请求。公开草稿前先用 `--metadata-only` 检查完整性。
 - 保留 Windows DPAPI 与 macOS Keychain 数据格式。Linux 使用 Secret Service，不允许明文密钥回退。测试钥匙串使用隔离 HOME 和 D-Bus 会话，不清理个人钥匙串条目。
+
+- 草稿因构建环境问题需要重跑 Linux 时，可在当前工作流指定 `release_ref` 为已有版本标签、`platform` 为 `linux`。源码仍须匹配原标签；已发布文件不被替换，最终发布仍要求十个文件齐全。
