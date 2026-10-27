@@ -1,0 +1,28 @@
+name: Check Linux keyring
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Existing source version / 检查已有源码版本'
+        type: string
+        default: '0.4.1'
+permissions:
+  contents: read
+jobs:
+  fedora:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: v${{ inputs.version }}
+      - name: Diagnose isolated Fedora keyring startup
+        shell: bash
+        run: |
+          mkdir -p output
+          sed 's# >/dev/null##' scripts/With-LinuxKeyring.sh > output/With-LinuxKeyring-verbose.sh
+          docker run --rm -v "$PWD:/workspace:ro" -w /workspace fedora:44 bash -euxc '
+            dnf install -y gnome-keyring libsecret dbus-daemon shadow-utils util-linux
+            useradd --create-home lettide-test
+            runuser -u lettide-test -- env SHELLOPTS=xtrace bash -x output/With-LinuxKeyring-verbose.sh true
+          '
