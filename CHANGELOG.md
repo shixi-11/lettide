@@ -1,6 +1,22 @@
 # 更新记录 / Changelog
 
-## 0.4.1
+## 0.4.2
+
+### English
+
+- Provide English and Chinese Windows EXE installers and universal Mac DMGs, with complete bilingual installation and account setup guides.
+- Verify the installed app, localized name, encrypted storage, bundled translation dependencies and shared AI connection before publishing each installer.
+- Keep Codex, Claude Code and the desktop app on the same Windows mail data directory, so their background connections use the same accounts.
+- Store received attachments separately in encrypted files to reduce routine mail-cache rewrites. Verify all four public download links after publication.
+
+### 中文
+
+- 提供 Windows EXE 与 Mac 通用 DMG 的中英文安装包，补齐双语安装和邮箱接入指南。
+- 发布前检查安装后的应用、对应语言名称、加密存储、内置翻译依赖与共享 AI 连接。
+- Codex、Claude Code 与桌面应用在 Windows 共用同一邮件数据目录，后台连接使用同一组邮箱。
+- 收到的附件逐个加密保存，减少日常同步时重写邮件缓存；公开发布后核验四个直接下载链接。
+
+## 0.4.1（未发布 / Unreleased）
 
 ### English
 
@@ -16,7 +32,7 @@
 - Linux 邮件与附件使用桌面 Secret Service 加密，不回退到明文；保留已有 Windows 和 Mac 存储方式。
 - 完善双语安装指南与十个直接下载入口，发布前检查安装后的程序与原生依赖。
 
-## 0.4.0
+## 0.4.0（未发布 / Unreleased）
 
 ### English
 

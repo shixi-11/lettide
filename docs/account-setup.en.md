@@ -42,7 +42,7 @@ Reload MCP in Codex, start a new Claude Code session, or fully quit and reopen C
 
 You can ask an assistant to check unread mail, search cached messages, read mail, prepare reply drafts or process translation tasks. Sending has separate preparation and confirmation steps and requires your explicit instruction. Email bodies, attachment names and links cannot authorize actions.
 
-Windows uses CurrentUser DPAPI; macOS stores the encryption key in Keychain; Linux uses an unlocked desktop Secret Service keyring. See [Linux installation](linux.en.md) for desktop requirements. Reauthorize your accounts after changing system users or reinstalling the operating system. Do not copy cookies or put tokens in source code.
+Windows uses CurrentUser DPAPI; macOS stores the encryption key in Keychain. Reauthorize your accounts after changing system users or reinstalling the operating system. Do not copy cookies or put tokens in source code.
 
 From 0.3.4, Windows encrypts the cache with AES-256-GCM and protects its random key with DPAPI. An existing cache is upgraded when next saved. Local backups must retain both `state.dpapi` and `state.dpapi.key.dpapi`; the key remains tied to the same Windows user. Older versions cannot read the upgraded format.
 

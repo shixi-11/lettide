@@ -8,11 +8,6 @@ on:
         description: 'Existing version tag to build / 要构建的现有版本标签'
         type: string
         default: ''
-      platform:
-        description: 'Platforms to verify / 检查的平台'
-        type: choice
-        options: [all, linux]
-        default: all
       notes_only:
         description: '只更新双语说明 / Update bilingual notes only'
         type: boolean
@@ -64,7 +59,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: ${{ fromJSON(inputs.platform == 'linux' && '["ubuntu-22.04"]' || '["windows-latest","macos-latest","ubuntu-22.04"]') }}
+        os: [windows-latest, macos-latest]
         language: [zh-CN, en]
     runs-on: ${{ matrix.os }}
     steps:
@@ -77,11 +72,6 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
-      - name: Linux packaging and isolated keyring dependencies
-        if: runner.os == 'Linux'
-        run: |
-          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 update -qq
-          sudo apt-get -o Acquire::Retries=2 -o Acquire::http::Timeout=30 -o Acquire::https::Timeout=30 install -y libsecret-tools gnome-keyring dbus-x11 xvfb xauth rpm libarchive-tools libfuse2 fonts-wqy-microhei
       - name: Install locked dependencies
         shell: bash
         run: |
@@ -91,12 +81,7 @@ jobs:
           cd desktop && node node_modules/electron/install.js
       - name: Backend checks, including native OS storage
         shell: bash
-        run: |
-          if [ "${{ runner.os }}" = Linux ]; then
-            bash scripts/With-LinuxKeyring.sh env LETTIDE_TEST_SECRET_SERVICE=1 node --test backend/tests/*.test.js
-          else
-            node --test backend/tests/*.test.js
-          fi
+        run: node --test backend/tests/*.test.js
       - name: Build interface
         working-directory: web
         run: pnpm build
@@ -107,11 +92,9 @@ jobs:
         run: |
           args=()
           if [ "${{ runner.os }}" = macOS ]; then args+=(--mac); fi
-          if [ "${{ runner.os }}" = Linux ]; then args+=(--linux); fi
           if [ "${{ matrix.language }}" = en ]; then args+=(--en); fi
           node scripts/Build-Desktop.mjs "${args[@]}"
       - name: Verify packaged native dependencies on Windows and Mac
-        if: runner.os != 'Linux'
         run: node scripts/Verify-PackagedRuntime.mjs
       - name: Install Windows EXE and verify installed app
         if: runner.os == 'Windows'
@@ -148,37 +131,6 @@ jobs:
           export LETTIDE_TEST_EXECUTABLE="${binaries[0]}"
           node scripts/Verify-PackagedRuntime.mjs
           node tests/installed-desktop-smoke.mjs
-      - name: Install Linux DEB and verify UI, keyring, translation runtime and MCP
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          deb=(output/desktop/*.deb)
-          test "${#deb[@]}" = 1
-          sudo apt-get install -y "./${deb[0]}"
-          export LETTIDE_TEST_EXECUTABLE="$(readlink -f /usr/bin/Lettide)"
-          test -f "$LETTIDE_TEST_EXECUTABLE" && test -x "$LETTIDE_TEST_EXECUTABLE"
-          xvfb-run -a bash scripts/With-LinuxKeyring.sh bash -euc '
-            node scripts/Verify-PackagedRuntime.mjs
-            node scripts/Verify-PackagedRuntime.mjs --appimage
-            node tests/installed-desktop-smoke.mjs
-            node tests/appimage-mcp-smoke.mjs
-          '
-          rpm -qp --requires output/desktop/*.rpm | grep -q libsecret
-      - name: Install RPM and verify native runtime on Fedora
-        if: runner.os == 'Linux' && matrix.language == 'en'
-        shell: bash
-        run: |
-          docker run --rm -v "$PWD:/workspace:ro" -w /workspace fedora:44 bash -euc '
-            dnf install -y /workspace/output/desktop/*.rpm dbus-daemon xorg-x11-server-Xvfb shadow-utils util-linux
-            Xvfb :99 -screen 0 1280x720x24 >/dev/null 2>&1 &
-            xpid=$!
-            trap "kill $xpid" EXIT
-            export DISPLAY=:99
-            export LETTIDE_TEST_EXECUTABLE="$(readlink -f /usr/bin/Lettide)"
-            test -f "$LETTIDE_TEST_EXECUTABLE" && test -x "$LETTIDE_TEST_EXECUTABLE"
-            useradd --create-home lettide-test
-            runuser -u lettide-test -- bash scripts/With-LinuxKeyring.sh env ELECTRON_RUN_AS_NODE=1 "$LETTIDE_TEST_EXECUTABLE" /workspace/scripts/Verify-PackagedRuntime.mjs
-          '
       - name: Upload checked installers to release draft
         env:
           GH_TOKEN: ${{ github.token }}
@@ -186,7 +138,7 @@ jobs:
         run: |
           version="$(node -p "require('./desktop/package.json').version")"
           tag="v$version"
-          node --input-type=module -e "import {installerAssets} from './desktop/release-targets.mjs'; console.log(installerAssets('$version').filter(a=>a.platform==='${{ runner.os == 'Windows' && 'win' || runner.os == 'macOS' && 'mac' || 'linux' }}'&&a.language==='${{ matrix.language }}').map(a=>a.name+'#'+a.label).join('\n'))" > output/installers-to-publish.txt
+          node --input-type=module -e "import {installerAssets} from './desktop/release-targets.mjs'; console.log(installerAssets('$version').filter(a=>a.platform==='${{ runner.os == 'Windows' && 'win' || 'mac' }}'&&a.language==='${{ matrix.language }}').map(a=>a.name+'#'+a.label).join('\n'))" > output/installers-to-publish.txt
           test "$(gh release view "$tag" --json isDraft --jq .isDraft)" = true
           while IFS= read -r item; do
             name="${item%%#*}"

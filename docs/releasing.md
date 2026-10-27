@@ -2,28 +2,22 @@
 
 ## English
 
-- Keep one Release per version. English and Chinese sections each include the complete download table, changes, installation and account setup. English comes first.
-- `desktop/release-targets.mjs` defines the supported installer names: two Windows EXEs, two universal Mac DMGs and six Linux x64 DEB/RPM/AppImage files.
-- Keep `README.md` and `README.en.md` linked to each other and to all ten current-version installers. Linux and account setup guides are available in both languages.
-- Bump backend, web and desktop versions together and add full English and Chinese changelog sections. Run `node --test backend/tests/*.test.js` and `node --test tests/release-notes.test.mjs tests/downloads.test.mjs`, then build the interface.
-- Commit and push the exact source revision before its version tag. Do not change an existing tag. Each installer is built from that tag with locked dependencies.
-- The workflow creates a draft, checks native storage and packaged dependencies, installs the Windows EXE, mounts and copies the Mac DMG, and installs the Linux DEB for UI/MCP checks, checks AppImage reconnects and tests the RPM runtime in Fedora. Only complete builds are uploaded.
-- The final job requires all ten installers, publishes the bilingual preview Release and requests every public download URL. A missing or invalid installer fails publication checks. Notes-only runs update existing notes without replacing installers or publishing drafts.
-- Use `node scripts/Verify-ReleaseDownloads.mjs` with `GH_TOKEN` if API rate limits require authentication. Download requests themselves are unauthenticated. `--metadata-only` checks completeness before a draft is published.
-- Preserve Windows DPAPI and macOS Keychain data. Linux uses Secret Service and must never fall back to a plaintext key. Test keyrings use an isolated HOME and D-Bus session; do not run test cleanup against personal keyring items.
-
-- For an infrastructure-only retry while a release remains a draft, dispatch the current workflow with `release_ref` set to its existing version tag and `platform` set to `linux`. The checkout must still match that exact tag, published assets remain immutable, and the final job still requires all ten files.
+- This release provides Windows x64 EXE installers and universal Mac DMGs in English and Chinese: four files. Linux installers are deferred.
+- `desktop/release-targets.mjs` defines installer names and generates both download tables. Keep README links on the current released version.
+- Keep backend, web and desktop versions together. Each release has complete English and Chinese changes, downloads, installation and account setup; English comes first.
+- Commit and push source before its immutable version tag. A full installer build must use that exact tag; published installers cannot be replaced.
+- The workflow installs the Windows EXE, mounts and copies the Mac DMG, and verifies the installed UI, localized name, encrypted storage, bundled native dependencies and shared AI connection using fictional data.
+- Only complete, checked files are uploaded to the draft. Publication requires all four files and then verifies every public download URL without authentication.
+- `node scripts/Verify-ReleaseDownloads.mjs --metadata-only` checks draft completeness; omit the flag to verify published downloads. A missing or invalid file fails the check.
+- Notes-only runs update bilingual descriptions without rebuilding installers or publishing drafts. Manual infrastructure retries can set `release_ref` to the original version tag. Release operations are serialized while matrix builds remain parallel.
 
 ## 简体中文
 
-- 同一版本只用一个 Release。英文在前、中文在后，每个区块都有完整下载表、更新、安装和邮箱连接说明。
-- `desktop/release-targets.mjs` 定义安装文件名：Windows 两个 EXE、Mac 两个通用 DMG、Linux x64 六个 DEB/RPM/AppImage，共十个文件。
-- `README.md` 与 `README.en.md` 互相链接，并提供当前版本的十个直接下载入口。Linux 与邮箱接入指南均有中英文版。
-- backend、web、desktop 同步更新版本号，补齐中英文更新记录。运行后台测试、发布说明与下载测试，再构建界面。
-- 源码先提交并推送，再推同版本标签，不改写旧标签。各安装包使用该标签和锁定依赖构建。
-- 工作流先创建草稿，验证系统存储与原生依赖，安装 Windows EXE、挂载复制 Mac DMG、在 Linux 安装 DEB 后检查界面和 MCP，验证 AppImage 重连，并在 Fedora 检查 RPM 运行环境。只有通过检查的包才上传。
-- 最后一个任务确认十个文件齐全，再公开双语预览 Release，并真实请求每个下载链接。缺少文件或格式不符会导致发布检查失败。仅说明更新不会替换安装包或公开草稿。
-- `node scripts/Verify-ReleaseDownloads.mjs` 核对下载；API 限额时可设置 `GH_TOKEN`，文件下载本身仍使用未登录请求。公开草稿前先用 `--metadata-only` 检查完整性。
-- 保留 Windows DPAPI 与 macOS Keychain 数据格式。Linux 使用 Secret Service，不允许明文密钥回退。测试钥匙串使用隔离 HOME 和 D-Bus 会话，不清理个人钥匙串条目。
-
-- 草稿因构建环境问题需要重跑 Linux 时，可在当前工作流指定 `release_ref` 为已有版本标签、`platform` 为 `linux`。源码仍须匹配原标签；已发布文件不被替换，最终发布仍要求十个文件齐全。
+- 本轮提供 Windows x64 EXE 与 Mac 通用 DMG 的中英文安装包，共四个文件；Linux 安装包暂缓。
+- `desktop/release-targets.mjs` 定义安装文件名并生成双语下载表。两份 README 的链接始终指向当前已发布版本。
+- backend、web、desktop 版本号保持一致。发布页英文在前、中文在后，各有完整更新、下载、安装与邮箱接入说明。
+- 源码先提交并推送，再推不可改写的版本标签；完整构建必须使用该标签，已公开安装包不被替换。
+- 工作流安装 Windows EXE、挂载复制 Mac DMG，用虚构数据检查安装后的界面、对应语言名称、加密存储、内置原生依赖及共享 AI 连接。
+- 通过检查的完整文件才上传草稿；确认四个文件齐全后公开，再逐个验证无需登录的下载链接。
+- `node scripts/Verify-ReleaseDownloads.mjs --metadata-only` 检查草稿完整性；不带该参数则检查公开下载。缺少文件或格式不符会使检查失败。
+- 仅说明更新不会重建安装包或公开草稿。构建环境重试可指定 `release_ref` 为原版本标签。发布操作串行，平台和语言构建仍并行。

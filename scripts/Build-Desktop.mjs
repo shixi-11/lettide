@@ -7,6 +7,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 const language=process.argv.includes('--en')?'en':'zh-CN';
 if(process.argv.includes('--mac')&&process.argv.includes('--linux'))throw new Error('Choose one target platform.');
 const platform=releasePlatforms.find(p=>p.id===(process.argv.includes('--linux')?'linux':process.argv.includes('--mac')?'mac':'win'));
+if(!platform)throw new Error('This release provides Windows and macOS installers only.');
 const arch=process.argv.includes('--x64')?'x64':process.argv.includes('--arm64')?'arm64':platform.arch;
 const pkg=JSON.parse(await readFile(path.join(root,'desktop/package.json'),'utf8'));
 await writeFile(path.join(root,'desktop/build-locale.json'),JSON.stringify({language}));

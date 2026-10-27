@@ -17,12 +17,12 @@ async function fixture(t,{english=true,mismatch=false}={}){
  const run=(extra={})=>spawnSync(process.execPath,[path.join(root,'scripts/Prepare-Release.mjs')],{encoding:'utf8',env:{...process.env,GITHUB_REF_TYPE:'',GITHUB_REF_NAME:'',...extra}});
  return {root,run};
 }
-test('A release includes both complete language sections and all ten platform installers',async t=>{
+test('A release includes both complete language sections and all four Windows and Mac installers',async t=>{
  const {root,run}=await fixture(t);assert.equal(run().status,0);
  const notes=await readFile(path.join(root,'output/release-notes-1.2.3.md'),'utf8');
  assert.match(notes,/## 简体中文/);assert.match(notes,/## English/);assert.ok(notes.indexOf('## English')<notes.indexOf('## 简体中文'));
  assert.match(notes,/修复连接/);assert.match(notes,/Fix account connections/);
- assert.equal((notes.match(/releases\/download\/v1\.2\.3\//g)||[]).length,20);
+ assert.equal((notes.match(/releases\/download\/v1\.2\.3\//g)||[]).length,8);
  assert.doesNotMatch(notes,/\{\{[A-Z_]+\}\}/);
 });
 test('Missing English prevents publishing a Chinese-only release',async t=>{
