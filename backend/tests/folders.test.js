@@ -155,7 +155,7 @@ test('Gmail send request carries an attached MIME part and keeps Gmail reply thr
 test('Graph direct and reply sends encode fileAttachment payloads without changing reply flow',async()=>{
  const attachment={filename:'hello.txt',content:Buffer.from('hello attachment').toString('base64'),contentType:'text/plain'};
  const account={id:'graph-send',provider:'microsoft',email:'a@example.test',accessToken:'mock',expiresAt:Date.now()+3600000};
- let sentPayload;const directDeps={fetchImpl:async(url,init)=>{if(url.endsWith('/sendMail'))sentPayload=JSON.parse(init.body);return json({},202);}};
+ let sentPayload;const directDeps={fetchImpl:async(url,init)=>{if(url.endsWith('/me/messages')){sentPayload={message:JSON.parse(init.body)};assert.equal(init.headers.Prefer,'IdType="ImmutableId"');return json({id:'immutable-sent'});}return json({},202);}};
  await sendMail(stateFor(account),account,{to:'b@example.test',subject:'file',text:'body',attachments:[attachment]},directDeps);
  assert.equal(sentPayload.message.attachments[0]['@odata.type'],'#microsoft.graph.fileAttachment');assert.equal(sentPayload.message.attachments[0].name,'hello.txt');assert.equal(Buffer.from(sentPayload.message.attachments[0].contentBytes,'base64').toString(),'hello attachment');
  const replyState=stateFor(account);replyState.messages.push({id:'source',providerRef:{type:'graph',id:'source-1',rfcMessageId:'<original@example.test>'}});const calls=[];

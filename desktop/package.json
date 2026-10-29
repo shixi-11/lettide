@@ -1,6 +1,6 @@
 {
   "name": "lettide",
-  "version": "0.4.2",
+  "version": "0.5.0",
   "description": "Lettide — a calm home for your mail",
   "author": "Shixi Lin",
   "license": "PolyForm-Noncommercial-1.0.0",
@@ -29,7 +29,8 @@
       "package.json",
       "assets/icon.png",
       "assets/icon.svg",
-      "build-locale.json"
+      "build-locale.json",
+      "updater.cjs"
     ],
     "extraResources": [
       {

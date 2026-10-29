@@ -14,16 +14,19 @@ export class ImapPool {
  pump(bucket){
   if(bucket.closed)return;
   while(bucket.queue.length){
+   const queued=bucket.queue[0];
+   // Background sync and prefetch cannot occupy the last interactive session.
+   if(this.max>1&&queued.priority<=0&&bucket.entries.filter(e=>e.busy&&e.priority<=0).length>=this.max-1)return;
    let entry=bucket.entries.find(e=>!e.busy);
    if(entry&&(entry.client.usable===false)){this.discard(bucket,entry);continue;}
    if(!entry&&bucket.entries.length>=this.max)return;
    const request=bucket.queue.shift();clearTimeout(request.timer);
-   if(entry){clearTimeout(entry.timer);entry.busy=true;request.resolve(this.lease(bucket,entry));continue;}
-   try{entry={client:request.create(),busy:true,timer:null};}catch(error){request.reject(error);continue;}bucket.entries.push(entry);entry.client.on?.('error',()=>{});
+   if(entry){clearTimeout(entry.timer);entry.busy=true;entry.priority=request.priority;request.resolve(this.lease(bucket,entry));continue;}
+   try{entry={client:request.create(),busy:true,priority:request.priority,timer:null};}catch(error){request.reject(error);continue;}bucket.entries.push(entry);entry.client.on?.('error',()=>{entry.failed=true;if(!entry.busy)this.discard(bucket,entry);});
    void (async()=>{try{await entry.client.connect();if(bucket.closed)throw new Error('Mailbox connection was closed');request.resolve(this.lease(bucket,entry));}catch(error){this.discard(bucket,entry);request.reject(error);}finally{this.pump(bucket);}})();
   }
  }
- lease(bucket,entry){let released=false;return {client:entry.client,release:async()=>{if(released)return;released=true;entry.busy=false;if(bucket.closed||entry.client.usable===false)this.discard(bucket,entry);else{entry.timer=setTimeout(()=>this.discard(bucket,entry),this.idleMs);entry.timer.unref?.();}this.pump(bucket);}};}
+ lease(bucket,entry){let released=false;return {client:entry.client,release:async()=>{if(released)return;released=true;entry.busy=false;if(bucket.closed||entry.failed||entry.client.usable===false)this.discard(bucket,entry);else{entry.timer=setTimeout(()=>this.discard(bucket,entry),this.idleMs);entry.timer.unref?.();}this.pump(bucket);}};}
  discard(bucket,entry){clearTimeout(entry.timer);const i=bucket.entries.indexOf(entry);if(i>=0)bucket.entries.splice(i,1);try{entry.client.close();}catch{}this.pump(bucket);}
  async close(accountId){const buckets=accountId===undefined?[...this.buckets.values()]:[this.buckets.get(accountId)].filter(Boolean);if(accountId===undefined)this.buckets.clear();else this.buckets.delete(accountId);for(const bucket of buckets){bucket.closed=true;for(const request of bucket.queue){clearTimeout(request.timer);request.reject(new Error('Mailbox connection was closed'));}bucket.queue=[];for(const entry of [...bucket.entries]){clearTimeout(entry.timer);if(!entry.busy)this.discard(bucket,entry);}}}
 }

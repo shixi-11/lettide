@@ -10,6 +10,8 @@ $mailEnvironment=@()
 if (Test-Path -LiteralPath $mailElectron) {$mailNode=$mailElectron;$mailEntry=Join-Path (Split-Path $mailElectron -Parent) 'resources\backend\src\mcp.js';$mailEnvironment=@('--env','ELECTRON_RUN_AS_NODE=1')}
 if (!(Test-Path -LiteralPath $mailNode) -or !(Test-Path -LiteralPath $mailEntry)) {throw '找不到邮箱运行环境。'}
 $mailData = if ($env:LETTIDE_DATA_DIR) {$env:LETTIDE_DATA_DIR} else {Join-Path $env:USERPROFILE '.lettide'}
+$mailData=[System.IO.Path]::GetFullPath($mailData)
+$mailEnvironment+=@('--env',('LETTIDE_DATA_DIR='+$mailData))
 $mailBackup = Join-Path $mailData ('config-backups\'+(Get-Date -Format 'yyyyMMdd-HHmmss'))
 function Save-ConfigBackup([string]$source,[string]$name) {if (!$DryRun -and (Test-Path -LiteralPath $source)) {New-Item -ItemType Directory -Path $mailBackup -Force|Out-Null;Copy-Item -LiteralPath $source -Destination (Join-Path $mailBackup $name)}}
 $mailCodex = Get-Command codex -ErrorAction SilentlyContinue
@@ -44,8 +46,8 @@ foreach($mailConfig in $mailDesktopPaths) {
  Save-ConfigBackup $mailConfig 'claude-desktop.json'
  try {$mailObj=if(Test-Path -LiteralPath $mailConfig){Get-Content -Raw -Encoding UTF8 -LiteralPath $mailConfig|ConvertFrom-Json}else{[pscustomobject]@{}}}catch{throw 'Claude 配置不是有效 JSON，未修改原文件。'}
  if (!$mailObj.PSObject.Properties['mcpServers']) {$mailObj=Add-Member -InputObject $mailObj -NotePropertyName mcpServers -NotePropertyValue ([pscustomobject]@{}) -PassThru}
- $mailObj.mcpServers=Add-Member -InputObject $mailObj.mcpServers -NotePropertyName 'lettide' -PassThru -NotePropertyValue ([pscustomobject]@{command=$mailNode;args=@($mailEntry);env=if($mailEnvironment.Count){@{ELECTRON_RUN_AS_NODE='1'}}else{@{}}}) -Force
- if (!$DryRun) {$mailObj|ConvertTo-Json -Depth 30|Set-Content -LiteralPath $mailConfig -Encoding utf8}
+ $mailObj.mcpServers=Add-Member -InputObject $mailObj.mcpServers -NotePropertyName 'lettide' -PassThru -NotePropertyValue ([pscustomobject]@{command=$mailNode;args=@($mailEntry);env=if(Test-Path -LiteralPath $mailElectron){@{ELECTRON_RUN_AS_NODE='1';LETTIDE_DATA_DIR=$mailData}}else{@{LETTIDE_DATA_DIR=$mailData}}}) -Force
+ if (!$DryRun) {[System.IO.File]::WriteAllText($mailConfig,($mailObj|ConvertTo-Json -Depth 30),(New-Object System.Text.UTF8Encoding($false)))}
  Write-Host 'Claude 桌面端：邮箱 MCP 配置就绪（完全退出再启动后可用）。'
 }
 if (!$mailDesktopFound) {Write-Host '未发现 Claude 桌面端配置目录；安装后再次运行本脚本即可连接。'}

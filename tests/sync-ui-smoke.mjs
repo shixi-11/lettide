@@ -13,7 +13,7 @@ try{
  await page.goto('http://127.0.0.1:'+port);await page.getByText('正在同步邮件…',{exact:true}).first().waitFor();assert.equal(await page.getByText('这里还没有邮件',{exact:true}).count(),0);
  release();await page.getByRole('alert').waitFor();assert.match(await page.getByRole('alert').innerText(),/同步失败/);
  await page.getByRole('button',{name:'切换邮箱',exact:true}).click();await page.getByRole('button',{name:/Personal QQ/}).click();await page.getByRole('button',{name:'同步邮件',exact:true}).waitFor({state:'visible'});await page.waitForFunction(()=>!document.querySelector('[aria-label="同步邮件"]').disabled);
- assert.equal(await page.locator('.sidebar-navigation').getByRole('button',{name:'归档',exact:true}).count(),0);assert.equal(await page.locator('.list-header h1').innerText(),'收件箱');assert.match(await page.locator('.list-footer').innerText(),/等待首次同步/);
+ assert.equal(await page.locator('.sidebar-navigation').getByRole('button',{name:'归档',exact:true}).count(),0);assert.equal(await page.locator('.list-header h1').innerText(),'收件箱');assert.match(await page.locator('.list-footer').innerText(),/连接暂时中断，正在自动重试/);
  fail=false;await page.getByRole('button',{name:'关闭提示',exact:true}).click();await page.getByRole('button',{name:'同步邮件',exact:true}).click();await page.getByRole('button',{name:/Example sender.*Fictional QQ/}).click();
  await page.getByText('正在加载正文…',{exact:true}).waitFor();assert.equal(await page.getByRole('button',{name:'译文',exact:true}).isDisabled(),true);await page.getByText('Meeting tomorrow.',{exact:true}).last().waitFor();assert.equal(bodyReads,1);
  assert.equal(await page.locator('.reader-toolbar').getByRole('button',{name:'归档',exact:true}).count(),0);assert.equal(await page.locator('.move-select option[value="archive"]').count(),0);

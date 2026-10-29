@@ -1,6 +1,6 @@
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
-import {syncAccount,loadMessageBody} from '../src/mail.js';
+import {syncAccount,loadMessageBody,loadAttachment} from '../src/mail.js';
 
 test('Gmail lists metadata with bounded concurrency and loads one body and its attachments on demand',async()=>{
  const account={id:'g',provider:'gmail',email:'fictional@example.test',accessToken:'mock',expiresAt:Date.now()+3600000,folders:[{id:'inbox',role:'inbox',providerId:'INBOX'}]};
@@ -22,7 +22,8 @@ test('Gmail lists metadata with bounded concurrency and loads one body and its a
  assert.ok(state.messages.every(m=>m.bodyLoaded===false&&m.text==='Preview only'));
  const message=state.messages[0];await loadMessageBody(state,message,deps);
  assert.equal(message.bodyLoaded,true);assert.equal(message.text,'Complete fictional body');assert.equal(message.attachments.length,1);
- assert.equal(Buffer.from(message.attachments[0].content,'base64').toString(),'fictional attachment');
+ assert.equal(calls.filter(u=>u.pathname.includes('/attachments/')).length,0);
+ assert.equal((await loadAttachment(state,message,message.attachments[0],deps)).toString(),'fictional attachment');
  await loadMessageBody(state,message,deps);assert.equal(calls.filter(u=>u.searchParams.get('format')==='full').length,1);
  unread=false;await syncAccount(state,account,'inbox','',60,deps);
  assert.equal(state.messages[0].text,'Complete fictional body');assert.equal(state.messages[0].bodyLoaded,true);assert.equal(state.messages[0].unread,false);

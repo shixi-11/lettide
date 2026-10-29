@@ -1,8 +1,8 @@
-# Offline translation / 离线翻译
+# Legacy offline model attribution / 历史离线模型署名
 
 ## English
 
-Lettide runs an ONNX model locally through [Transformers.js](https://huggingface.co/docs/transformers.js/en/index). Download it once in Settings → Translation. Clicking Translated or Compare processes the selected email body on this device. Completed translations are cached in the encrypted mail store. There is no automatic online translation fallback.
+Lettide runs an ONNX model locally through [Transformers.js](https://huggingface.co/docs/transformers.js/en/index). From 0.5.0 the reading interface uses online translation. This engine is retained only for explicit legacy API calls; ordinary reading does not start its worker or download a model. Completed translations are cached in the encrypted mail store. There is no automatic online translation fallback.
 
 - Model: Meta's NLLB-200 distilled 600M, converted to ONNX by Xenova: [model card](https://huggingface.co/Xenova/nllb-200-distilled-600M).
 - Pinned revision: `261c31d1a5732c67cdd16d80e8d6088507c7ccea`.
@@ -15,7 +15,7 @@ The model is stored under the local Lettide data directory in `models`. Model fi
 
 ## 中文
 
-叠信通过 Transformers.js 在本机运行 ONNX 翻译模型。在「设置 → 翻译」下载一次后，点击「译文」或「对照」即可处理当前邮件正文。已完成译文保存在本机加密数据中，不自动回退到在线翻译。
+叠信通过 Transformers.js 在本机运行 ONNX 翻译模型。0.5.0 起阅读界面改用在线翻译。本引擎只保留显式兼容接口，普通阅读不会启动其进程或下载模型。已完成译文保存在本机加密数据中，不自动回退到在线翻译。
 
 使用 Meta NLLB-200 distilled 600M 模型及 Xenova 转换的 ONNX 文件，固定版本与下载量见上方。首次约需下载 920 MB，下载请求不包含邮件正文。模型按其独立的 CC BY-NC 4.0 许可使用，保留 Meta／NLLB 团队及 Xenova 的来源署名，不改变叠信源码许可。
 

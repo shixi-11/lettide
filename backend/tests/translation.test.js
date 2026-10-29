@@ -8,8 +8,8 @@ import {Store} from '../src/store.js';
 import {createApp} from '../src/server.js';
 import {translateGoogle} from '../src/translate.js';
 test('anonymous translation sends only explicitly supplied text and language parameters over POST',async()=>{
- const calls=[];const result=await translateGoogle('Hello.\n\nFictional body.','简体中文',{fetchImpl:async(url,init)=>{calls.push({url,init});return {ok:true,json:async()=>[[['译文']]]};}});
- assert.equal(result,'译文\n\n译文');assert.equal(calls.length,2);
+ const calls=[];const result=await translateGoogle('Hello.\n\nFictional body.','简体中文',{fetchImpl:async(url,init)=>{calls.push({url,init});return {ok:true,json:async()=>[[['译文\n\n译文']]]};}});
+ assert.equal(result,'译文\n\n译文');assert.equal(calls.length,1);
  for(const {url,init} of calls){assert.equal(new URL(url).search,'');assert.equal(init.method,'POST');assert.deepEqual([...new URLSearchParams(init.body).keys()],['client','sl','tl','dt','q']);assert.equal(init.headers.Authorization,undefined);}
  await assert.rejects(translateGoogle('Fictional','invalid'),/Unsupported/);
 });

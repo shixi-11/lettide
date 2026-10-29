@@ -8,7 +8,7 @@ import * as macosCrypto from './macos-crypto.js';
 import {createWindowsCodec} from './windows-crypto.js';
 import {createLinuxCodec} from './linux-crypto.js';
 
-const initial = () => ({version:1, token:randomBytes(32).toString('base64url'), accounts:[], messages:[], drafts:[], settings:{translationMode:'local',ollamaModel:'qwen2.5:7b'}, jobs:[], sendResults:{}});
+const initial = () => ({version:1, token:randomBytes(32).toString('base64url'), accounts:[], messages:[], drafts:[], settings:{translationMode:'google',ollamaModel:'qwen2.5:7b'}, jobs:[], sendResults:{}});
 function dpapi(mode, payload) {
   if (process.platform !== 'win32') throw new Error('Protected storage is unavailable on this platform');
   const script = 'Add-Type -AssemblyName System.Security;'+(mode === 'protect'
@@ -37,7 +37,7 @@ export class Store {
     const usesDefault=!file;
     file??=path.join(dataDirectory(),process.platform==='win32'?'state.dpapi':'state.enc');
     this.file=file; this.legacyFile=legacyFile??(usesDefault&&process.platform==='win32'&&!process.env.LETTIDE_DATA_DIR?legacyWindowsFile():null);
-    this.codec=codec; this.readOnly=readOnly; this.state=null; this.queue=Promise.resolve(); this.lockHandle=null; this.windowsCrypto=createWindowsCodec({keyFile:file+'.key.dpapi',dpapi}); this.linuxCrypto=createLinuxCodec({keyId:createHash('sha256').update(path.resolve(file)).digest('hex')});
+    this.codec=codec; this.readOnly=readOnly; this.state=null; this.revision=0; this.queue=Promise.resolve(); this.lockHandle=null; this.windowsCrypto=createWindowsCodec({keyFile:file+'.key.dpapi',dpapi}); this.linuxCrypto=createLinuxCodec({keyId:createHash('sha256').update(path.resolve(file)).digest('hex')});
   }
   // Copies (never moves) data from the pre-0.3.12 location. The state file lands last, so its presence means the copy finished.
   async migrateLegacy(){
@@ -106,7 +106,7 @@ export class Store {
   }
   async persist(state){if(this.readOnly)throw new Error('Read-only store');await this.externalizeAttachments(state);const encrypted=await this.encrypt(Buffer.from(JSON.stringify(state))),tmp=`${this.file}.${process.pid}.${randomUUID()}.tmp`,backup=`${this.file}.${process.pid}.${randomUUID()}.bak`;const h=await fs.open(tmp,'wx',0o600);try{await h.writeFile(encrypted);await h.sync();}finally{await h.close();}try{try{await fs.rename(this.file,backup);await fs.rename(tmp,this.file);await fs.rm(backup,{force:true});}catch(e){try{await fs.access(backup);await fs.rename(backup,this.file);}catch{}throw e;}}catch(e){await fs.rm(tmp,{force:true});throw e;}}
   async save(){await this.persist(this.state);}
-  mutate(fn){const operation=this.queue.catch(()=>{}).then(async()=>{if(this.readOnly)throw new Error('Read-only store');const next=cloneData(this.state),out=await fn(next);await this.persist(next);this.state=next;return out;});this.queue=operation.catch(()=>{});return operation;}
+  mutate(fn){const operation=this.queue.catch(()=>{}).then(async()=>{if(this.readOnly)throw new Error('Read-only store');const next=cloneData(this.state),out=await fn(next);await this.persist(next);this.state=next;this.revision++;return out;});this.queue=operation.catch(()=>{});return operation;}
   async close(){this.windowsCrypto.close();this.linuxCrypto.close();if(this.lockHandle){try{await this.lockHandle.close();}catch{}this.lockHandle=null;try{await fs.rm(this.lockPath,{force:true});}catch{}}}
 }
 export const newId=()=>randomUUID();

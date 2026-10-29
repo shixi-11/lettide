@@ -45,7 +45,7 @@ test('offline translation requires explicit model download, deduplicates work an
  const f=await fixture({localTranslator:{status:async()=>({state:ready?'ready':'not_downloaded'}),download:async()=>{downloads++;return {state:'downloading'};},translate:async text=>{translations++;await new Promise(r=>setTimeout(r,25));return '译文 '+text;}},googleTranslator:async()=>{online++;throw new Error('Online fallback forbidden');}});
  try{
   const auth={...f.headers,authorization:`Bearer ${f.store.state.token}`,'content-type':'application/json'};
-  const translate=()=>fetch(f.url+'/api/translations',{method:'POST',headers:auth,body:JSON.stringify({messageId:'offline-fixture',targetLanguage:'简体中文'})});
+  const translate=()=>fetch(f.url+'/api/translations',{method:'POST',headers:auth,body:JSON.stringify({messageId:'offline-fixture',targetLanguage:'简体中文',mode:'local'})});
   await f.store.mutate(s=>s.messages.push({id:'offline-fixture',text:'Fictional meeting reminder'}));
   assert.equal((await fetch(f.url+'/api/translations/local',{headers:auth})).status,200);assert.equal(downloads,0);
   let result=await translate();assert.equal(result.status,409);assert.equal((await result.json()).code,'MODEL_NOT_READY');assert.equal(online,0);assert.equal(translations,0);
@@ -84,7 +84,7 @@ test('offline translations invalidate previous engine caches and keep explicit s
  try{
   const headers={authorization:`Bearer ${f.store.state.token}`,'content-type':'application/json'};
   await f.store.mutate(s=>{s.messages.push({id:'mixed',text:'Hello, this is a fictional email. 谢谢。'});s.jobs.push({id:'old-cache',messageId:'mixed',text:s.messages[0].text,targetLanguage:'简体中文',provider:'local',status:'completed',translation:s.messages[0].text});});
-  const translate=sourceLanguage=>fetch(f.url+'/api/translations',{method:'POST',headers,body:JSON.stringify({messageId:'mixed',targetLanguage:'简体中文',sourceLanguage})});
+  const translate=sourceLanguage=>fetch(f.url+'/api/translations',{method:'POST',headers,body:JSON.stringify({messageId:'mixed',targetLanguage:'简体中文',sourceLanguage,mode:'local'})});
   assert.equal((await translate('English')).status,200);assert.equal(calls.length,1);assert.equal(calls[0].sourceLanguage,'eng_Latn');
   assert.equal((await translate('English')).status,200);assert.equal(calls.length,1);assert.equal((await translate('Français')).status,200);assert.equal(calls.length,2);
   assert.equal((await translate('Unsupported')).status,400);assert.equal(calls.length,2);

@@ -1,5 +1,27 @@
 # 更新记录 / Changelog
 
+## 0.5.0
+
+### English
+
+- Add startup update notifications and in-app check, download and install controls, with verified files and draft preservation.
+- Check Inbox and Sent every 30 seconds across accounts; unchanged Gmail folders use one incremental history check. SMTP-accepted mail is visible before its server Sent copy finishes saving.
+- Translate selected message bodies online without a model download or API key. Add natural text chunks, a bounded deadline, independent cancellation and encrypted result caching.
+- Make AI tool discovery independent of mail-service startup. Return compact search previews and refresh the UI only when shared mail data changes.
+- Share OAuth renewal across concurrent operations, recover expired read requests, reserve an IMAP connection for reading and replace failed sessions.
+- Show sent mail immediately after a backend send. Keep Outlook immutable message IDs and a durable provider receipt for checking uncertain sends without resending.
+- Load text before attachments, preserve cached mail while syncing and show connection interruptions clearly. Improve translation settings, language labels and compact layouts.
+
+### 中文
+
+- 增加启动更新提示，以及应用内检查、下载、安装按钮；核对安装文件并在更新前保存草稿。
+- 各邮箱并行检查收件箱与已发送，间隔约 30 秒；Gmail 无变化时一次增量检查，SMTP 已发邮件在副本保存完成前即可查看。
+- 选中的邮件正文直接在线翻译，无需模型或密钥；按自然边界分段，增加等待上限、独立取消与加密缓存。
+- AI 工具加载不再等待邮箱服务启动；搜索只返回简短预览，界面按共享数据变化刷新。
+- 并发操作共用授权续期，过期的读取请求可恢复；为阅读预留 IMAP 连接并淘汰失效会话。
+- 后台发信后立即显示已发送；Outlook 保留稳定邮件标识及服务商回执，可核查不确定结果，避免重复发送。
+- 正文优先、附件按需下载；同步时保留已有邮件，明确显示连接中断，并打磨翻译设置、语言标识和紧凑窗口。
+
 ## 0.4.2
 
 ### English

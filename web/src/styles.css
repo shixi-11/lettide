@@ -40,3 +40,7 @@
 .sent-copy-notice{display:flex;align-items:center;gap:12px;margin:0 22px 12px;padding:12px;border:1px solid var(--line);border-radius:10px;font-size:13px}.sent-copy-notice span{flex:1;min-width:0}.sent-copy-notice small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;opacity:.7}.sent-copy-notice button{flex-shrink:0}
 
 .reading-controls{flex-wrap:wrap;column-gap:10px;row-gap:8px}.reading-controls>label{font-size:11px;color:var(--muted)}
+
+.connection-warning{color:var(--secondary)}.account-dot.warning{background:#c9943b}.translation-empty>small{max-width:34em;line-height:1.7}.translation-empty>button{margin-top:8px}
+
+.update-control{display:flex;flex-wrap:wrap;align-items:center;gap:7px 12px;font-size:12px;line-height:1.6;min-width:0}.update-control>span{color:var(--secondary)}.update-control .text-button{display:inline-flex;gap:5px;align-items:center;white-space:nowrap}.update-control progress{width:120px;accent-color:var(--accent)}.update-notice{padding:11px 12px;margin:0 0 9px;border:1px solid var(--line);background:var(--chip);border-radius:10px}.update-notice>span{width:100%;font-weight:500}.version-row .update-control{justify-content:flex-end;margin-left:auto;max-width:62%}

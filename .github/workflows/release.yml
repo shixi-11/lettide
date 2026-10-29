@@ -81,7 +81,7 @@ jobs:
           cd desktop && node node_modules/electron/install.js
       - name: Backend checks, including native OS storage
         shell: bash
-        run: node --test backend/tests/*.test.js
+        run: node --test backend/tests/*.test.js tests/updater.test.mjs
       - name: Build interface
         working-directory: web
         run: pnpm build

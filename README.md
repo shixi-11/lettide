@@ -4,22 +4,24 @@
 
 ## 下载安装
 
-当前预览版本 **0.4.2**。[下载页](https://github.com/shixi-11/lettide/releases/tag/v0.4.2) · [更新记录](CHANGELOG.md) · [English](README.en.md)
+当前预览版本 **0.5.0**。[下载页](https://github.com/shixi-11/lettide/releases/tag/v0.5.0) · [更新记录](CHANGELOG.md) · [English](README.en.md)
 
 | 系统与安装包 | 简体中文「叠信」 | English “Lettide” |
 | --- | --- | --- |
-| Windows 10 / 11 · 64 位 | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.4.2/Lettide-0.4.2-win-x64-zh-CN.exe) | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.4.2/Lettide-0.4.2-win-x64-en.exe) |
-| macOS 13+ · Apple 芯片与 Intel | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.4.2/Lettide-0.4.2-mac-universal-zh-CN.dmg) | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.4.2/Lettide-0.4.2-mac-universal-en.dmg) |
+| Windows 10 / 11 · 64 位 | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.5.0/Lettide-0.5.0-win-x64-zh-CN.exe) | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.5.0/Lettide-0.5.0-win-x64-en.exe) |
+| macOS 13+ · Apple 芯片与 Intel | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.0/Lettide-0.5.0-mac-universal-zh-CN.dmg) | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.0/Lettide-0.5.0-mac-universal-en.dmg) |
 
 Windows 双击安装；macOS 打开 DMG 后把应用拖入「应用程序」。内置运行环境，无需安装 Node.js。中文版与英文版功能相同，可在设置中切换中文、English 或跟随系统。
 
 下载页按系统和语言提供直接下载入口。当前为未签名预览版：Windows 可能提示未知发布者；macOS 未经过 Apple 公证，首次打开可能需在系统「隐私与安全性」中允许。
 
+设置中提供「检查更新」，发现新版后可直接下载和安装；启动时也会检查并提示。下载会核对文件完整性，安装前先保存当前草稿。Windows 安装后重新打开应用，Mac 按 DMG 提示替换应用；账号和邮件缓存保留。
+
 ## 开始使用
 
 1. 添加邮箱。同一平台可添加多个账号。QQ 使用邮箱或号码与授权码；GoDaddy Professional 使用邮箱密码；Gmail 与 Microsoft 365 在默认浏览器授权。左上角点击切换邮箱，账号较多时可以搜索；文件夹与标签跟随当前邮箱，选择「全部邮箱」可统一阅读，文件夹按账号分组展开；「管理邮箱」打开独立窗口调整顺序或移除连接。
 2. Gmail 和 Microsoft 365 首次需有效的 OAuth 应用配置。当前没有附带发行者的授权应用，不能跳过注册步骤；见 [邮箱接入](docs/邮箱接入.md)。QQ 获取授权码的入口已放在连接页面。
-3. 在设置中下载一次离线翻译模型（约 920 MB）。之后点击「译文」或「对照」，直接在本机翻译，无需联网、翻译密钥或连接助手。
+3. 点击「译文」或「对照」，直接使用 Google 免费在线翻译，无需填写密钥或下载模型。只发送你点击翻译的当前邮件正文，译文在本机加密缓存，原文保留。
 4. 需要 AI 时，点击「AI 连接 → 配置 AI 助手」，再重启相应客户端。
 
 连接由本机后台加密保存，正常情况下无需反复登录。授权撤销、密码或组织策略变化时需要重新连接。关闭桌面窗口后收起到系统托盘并继续同步；双击图标打开，右键选择「退出叠信」结束应用和后台服务。助手再次调用时可以按需启动后台。
@@ -35,15 +37,15 @@ Windows 双击安装；macOS 打开 DMG 后把应用拖入「应用程序」。�
 - 日间、夜间、系统外观，中英文及系统语言。
 - MCP 读取、搜索、同步、草稿与显式确认发送工具；SMTP 已发出邮件可单独补存副本，无需重发。
 
-每个文件夹缓存最近 60 封邮件，搜索针对这些缓存。QQ 等 IMAP 邮箱先加载列表，打开邮件后下载并缓存正文和附件；离线阅读和正文搜索使用已下载的内容。收件箱与已发送约每分钟检查，其他文件夹每分钟分批检查，目录约每十分钟刷新。选择文件夹或点击同步可立即更新当前分类。
+每次同步读取文件夹最近 60 封邮件，并保留已经缓存的历史内容；搜索针对本机缓存。列表只传输简短预览，正文按需加载，附件点击后才下载；离线阅读和正文搜索使用已下载的正文。收件箱与已发送约每 30 秒检查，各邮箱并行处理；Gmail 无变化时只检查历史游标，其他文件夹每分钟分批检查，目录约每十分钟刷新。选择文件夹或点击同步可立即更新当前分类。
 
 批量操作、全历史服务端搜索、HTML 排版编辑、通知及开机启动仍在后续计划中。发送结果不确定时禁止自动重发，应先检查已发送邮件。
 
 ## 翻译与隐私
 
-点击「译文」或「对照」后，使用本机离线模型处理当前正文，原文与译文保留在本机。首次模型下载连接 Hugging Face，下载请求不包含邮件正文；之后翻译禁止远程模型访问，不自动改用在线或收费服务。模型加载和生成需要一定时间，已经缓存的译文直接显示。自动检测不准确时可选择「原文语言」，等待中可取消翻译；模型返回原文时会提示重试。
+点击「译文」或「对照」后，仅将当前邮件正文发送给 Google，不发送账号、主题、邮件头或附件。支持源语言与目标语言选择、取消、重试和本机译文缓存，不依赖 Codex 或 Claude，也不自动加载本地模型。
 
-离线模型使用 Meta NLLB-200 的量化 ONNX 版本；详见 [模型来源与许可](docs/translation-model.md)。高级助手任务仍可显式选择 MCP 翻译队列。
+免费网页翻译入口不是 Google Cloud Translation 付费 API，可能临时限流或变更；失败时会明确提示重试，不会切换收费服务。详见[翻译说明](docs/translation.md)。旧离线引擎仅保留兼容接口，普通阅读界面不再使用；历史模型文件及其许可见[模型来源与许可](docs/translation-model.md)。
 
 Windows 使用当前用户 DPAPI 保护随机密钥，macOS 使用 Keychain；邮件缓存使用 AES-256-GCM 加密。数据分别位于 `%USERPROFILE%/.lettide`（0.3.12 起；旧目录数据首次启动时自动复制过来，原处保留；可用环境变量 `LETTIDE_DATA_DIR` 指定）、`~/Library/Application Support/Lettide`（macOS）。不要上传数据目录、令牌、授权码、客户端备份或 OAuth 密钥。
 
@@ -69,3 +71,5 @@ node scripts/Build-Desktop.mjs --mac --en
 ## 许可
 
 [PolyForm Noncommercial 1.0.0](LICENSE)，商业用途需书面授权。项目属于源码公开项目；版权声明见 [NOTICE](NOTICE)，第三方依赖保留各自许可。
+
+应用内更新检查已公开的预览版及正式版，忽略发布草稿。自动检查只提示；可在设置中手动检查、下载并选择安装。安装前保存草稿，安装后核对真实运行版本。
