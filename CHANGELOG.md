@@ -1,14 +1,18 @@
 # 更新记录 / Changelog
 
-## 0.5.1
+## 0.5.2
 
 ### English
+
+- Keep draft-operation errors in the selected interface language.
 
 - Add deletion from local draft rows, context menus and the editor, plus confirmed clearing for the selected account and search scope.
 - Move deleted drafts to recoverable Trash, preserve saved content, attachments and send receipts, and keep in-flight sends and drafts added after confirmation.
 - Add keyboard deletion, English labels, retryable errors and confirmation dialogs that preserve unsaved edits when cancelled.
 
 ### 中文
+
+- 修复草稿操作错误提示与界面语言不一致的问题。
 
 - 补齐本机草稿的列表、右键和编辑窗口删除，以及按当前邮箱与搜索范围确认清空的入口。
 - 删除后移入可恢复的已删除列表，保留已保存正文、附件和发送回执；正在发送、确认后新建的草稿不被清空。

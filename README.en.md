@@ -2,12 +2,12 @@
 
 A calmer home for Gmail, Outlook, GoDaddy and QQ Mail, with inline translation and shared mail tools for Codex and Claude.
 
-**Preview 0.5.1** · [Downloads](https://github.com/shixi-11/lettide/releases/tag/v0.5.1) · [Changelog](CHANGELOG.md) · [中文说明](README.md)
+**Preview 0.5.2** · [Downloads](https://github.com/shixi-11/lettide/releases/tag/v0.5.2) · [Changelog](CHANGELOG.md) · [中文说明](README.md)
 
 | Platform and package | English “Lettide” | 简体中文「叠信」 |
 | --- | --- | --- |
-| Windows 10 / 11 · x64 | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.5.1/Lettide-0.5.1-win-x64-en.exe) | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.5.1/Lettide-0.5.1-win-x64-zh-CN.exe) |
-| macOS 13+ · Apple Silicon + Intel | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.1/Lettide-0.5.1-mac-universal-en.dmg) | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.1/Lettide-0.5.1-mac-universal-zh-CN.dmg) |
+| Windows 10 / 11 · x64 | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.5.2/Lettide-0.5.2-win-x64-en.exe) | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.5.2/Lettide-0.5.2-win-x64-zh-CN.exe) |
+| macOS 13+ · Apple Silicon + Intel | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.2/Lettide-0.5.2-mac-universal-en.dmg) | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.2/Lettide-0.5.2-mac-universal-zh-CN.dmg) |
 
 Run the Windows EXE, open the Mac DMG and drag the app into Applications. Node.js is included. Choose English, Chinese or the system language in Settings. These preview installers are unsigned; the Mac app is not notarized.
 
