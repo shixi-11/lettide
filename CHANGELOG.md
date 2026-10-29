@@ -1,5 +1,19 @@
 # 更新记录 / Changelog
 
+## 0.5.1
+
+### English
+
+- Add deletion from local draft rows, context menus and the editor, plus confirmed clearing for the selected account and search scope.
+- Move deleted drafts to recoverable Trash, preserve saved content, attachments and send receipts, and keep in-flight sends and drafts added after confirmation.
+- Add keyboard deletion, English labels, retryable errors and confirmation dialogs that preserve unsaved edits when cancelled.
+
+### 中文
+
+- 补齐本机草稿的列表、右键和编辑窗口删除，以及按当前邮箱与搜索范围确认清空的入口。
+- 删除后移入可恢复的已删除列表，保留已保存正文、附件和发送回执；正在发送、确认后新建的草稿不被清空。
+- 增加键盘删除、中英文提示和失败重试；取消删除确认不会关闭编辑窗口或丢失未保存修改。
+
 ## 0.5.0
 
 ### English

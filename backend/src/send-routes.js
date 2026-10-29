@@ -53,6 +53,7 @@ export async function registerSendRoutes(app,store,{mailSender=sendMail,sentCopy
   const claim=await store.mutate(s=>{
    if(Object.hasOwn(s.sendResults,key))return {prior:s.sendResults[key]};
    const d=s.drafts.find(x=>x.id===req.params.id);if(!d)return {error:'missing'};
+   if(d.deletedAt)return {error:'deleted'};
    if(d.status&&d.status!=='draft')return {error:d.status};
    if(!s.accounts.some(a=>a.id===d.accountId))return {error:'account_missing'};
    if(!validRecipients(d)||/[\r\n]/.test(String(d.subject||'')))return {error:'invalid_recipients'};
@@ -60,6 +61,7 @@ export async function registerSendRoutes(app,store,{mailSender=sendMail,sentCopy
    return {draft:structuredClone(d),account:structuredClone(s.accounts.find(a=>a.id===d.accountId))};
   });
   if(claim.prior)return res.status(claim.prior.status==='sent'?200:409).json(claim.prior);
+  if(claim.error==='deleted')return res.status(409).json({status:'deleted',error:'Draft is in Trash. Restore it before sending.'});
   if(claim.error)return claim.error==='missing'?res.sendStatus(404):['invalid_recipients','account_missing'].includes(claim.error)?res.status(400).json({error:'Enter valid recipients and select a connected account before sending'}):res.status(409).json({status:claim.error,message:'This draft has already started sending and will not be retried automatically.'});
   const {draft,account}=claim,accountBaseline=structuredClone(claim.account),copyId=randomUUID();let accepted=false;
   try{

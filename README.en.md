@@ -2,12 +2,12 @@
 
 A calmer home for Gmail, Outlook, GoDaddy and QQ Mail, with inline translation and shared mail tools for Codex and Claude.
 
-**Preview 0.5.0** · [Downloads](https://github.com/shixi-11/lettide/releases/tag/v0.5.0) · [Changelog](CHANGELOG.md) · [中文说明](README.md)
+**Preview 0.5.1** · [Downloads](https://github.com/shixi-11/lettide/releases/tag/v0.5.1) · [Changelog](CHANGELOG.md) · [中文说明](README.md)
 
 | Platform and package | English “Lettide” | 简体中文「叠信」 |
 | --- | --- | --- |
-| Windows 10 / 11 · x64 | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.5.0/Lettide-0.5.0-win-x64-en.exe) | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.5.0/Lettide-0.5.0-win-x64-zh-CN.exe) |
-| macOS 13+ · Apple Silicon + Intel | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.0/Lettide-0.5.0-mac-universal-en.dmg) | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.0/Lettide-0.5.0-mac-universal-zh-CN.dmg) |
+| Windows 10 / 11 · x64 | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.5.1/Lettide-0.5.1-win-x64-en.exe) | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.5.1/Lettide-0.5.1-win-x64-zh-CN.exe) |
+| macOS 13+ · Apple Silicon + Intel | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.1/Lettide-0.5.1-mac-universal-en.dmg) | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.1/Lettide-0.5.1-mac-universal-zh-CN.dmg) |
 
 Run the Windows EXE, open the Mac DMG and drag the app into Applications. Node.js is included. Choose English, Chinese or the system language in Settings. These preview installers are unsigned; the Mac app is not notarized.
 
@@ -32,3 +32,5 @@ Source is available under [PolyForm Noncommercial 1.0.0](LICENSE). Commercial us
 For maintainers: [release conventions](docs/releasing.md) cover bilingual notes, installer labels and version tags.
 
 In-app update checks include published preview and stable releases, excluding drafts. Automatic checks only notify; Settings lets you check, download and choose to install. Drafts are saved before installation, and the running version is verified afterward.
+
+Delete local drafts from the list, context menu or editor. Clear drafts acts on the confirmed local drafts in the current account and search scope. Restore them from Trash; drafts currently sending are kept, and uncertain sends are never submitted again by deletion or restoration. Provider drafts can still be moved individually to the provider’s Trash.
