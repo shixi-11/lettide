@@ -1,4 +1,4 @@
-const {app, BrowserWindow, shell, dialog, ipcMain, nativeTheme, Menu, Tray, nativeImage}=require('electron');
+const {app, BrowserWindow, shell, dialog, ipcMain, nativeTheme, Menu, Tray, nativeImage, Notification}=require('electron');
 const {spawn}=require('node:child_process');
 const path=require('node:path');
 const fs=require('node:fs');
@@ -17,11 +17,13 @@ function external(url){try{const u=new URL(url);if(u.protocol==='https:'||u.prot
 function updateTrayMenu(){
   if(!tray)return;
   const en=language==='en';
-  tray.setToolTip(en?'Lettide':'叠信');
+  const ready=updater?.snapshot().status==='ready'?updater.snapshot().latestVersion:null;
+  tray.setToolTip(ready?(en?`Lettide · ${ready} is ready`:`叠信 · 新版本 ${ready} 已准备好`):en?'Lettide':'叠信');
   tray.setContextMenu(Menu.buildFromTemplate([
     {label:en?'Open Lettide':'打开叠信',click:()=>showMainWindow()},
     {label:en?'Manage accounts':'管理邮箱',click:()=>openAccountManagerWindow()},
     {type:'separator'},
+    ...(ready?[{label:en?`Restart to update to ${ready}`:`重启并更新到 ${ready}`,click:async()=>{const result=await installUpdate();if(result.error)dialog.showErrorBox(en?'Update not installed':'暂未安装更新',result.error);}},{type:'separator'}]:[]),
     {label:en?'Quit Lettide':'退出叠信',click:()=>app.quit()},
   ]));
 }
@@ -68,9 +70,22 @@ async function setupUpdater(){
  const {DesktopUpdater}=require('./updater.cjs');
  const {dataDirectory}=await import(require('node:url').pathToFileURL(path.join(root,'backend','src','store.js')).href);
  updater=new DesktopUpdater({version:app.getVersion(),language,cacheDir:path.join(dataDirectory(),'updates')});
- updater.on('change',state=>{if(window&&!window.isDestroyed())window.webContents.send('lettide:update-state',state)});
- updateTimer=setTimeout(()=>updater.check(),8000);updateTimer.unref?.();
- updateInterval=setInterval(()=>updater.check(),6*60*60*1000);updateInterval.unref?.();
+ let announced=null;
+ updater.on('change',state=>{
+  if(window&&!window.isDestroyed())window.webContents.send('lettide:update-state',state);
+  updateTrayMenu();
+  // The window often lives hidden in the tray, where the sidebar notice is never seen.
+  if(state.status==='ready'&&state.latestVersion&&announced!==state.latestVersion){announced=state.latestVersion;if(!(window?.isVisible()&&window.isFocused())&&Notification.isSupported()){const en=language==='en',note=new Notification({title:en?`Lettide ${state.latestVersion} is ready`:`叠信 ${state.latestVersion} 已准备好`,body:en?'Open Lettide and restart to update.':'打开叠信，点「重启并更新」即可。'});note.on('click',showMainWindow);note.show();}}
+ });
+ updateTimer=setTimeout(fetchUpdate,8000);updateTimer.unref?.();
+ updateInterval=setInterval(fetchUpdate,6*60*60*1000);updateInterval.unref?.();
+}
+// A found update downloads in the background so the user only has to restart.
+async function fetchUpdate(){try{const state=await updater.check();if(state.status==='available')await updater.download();}catch{}}
+async function installUpdate(){
+ const en=language==='en';let file;try{file=await updater.installer();}catch{return {ok:false,error:en?'The downloaded update is no longer valid. Check for updates again.':'已下载的更新已失效，请重新检查更新。'};}
+ if(!await prepareUpdateDraft())return {ok:false,error:en?'Could not save the current draft. Save it before installing.':'当前草稿未能保存，请先保存后再安装。'};
+ pendingInstaller=file;setImmediate(()=>app.quit());return {ok:true};
 }
 async function stopSharedService(sessionCookie){
  const cookies=sessionCookie?null:await window?.webContents.session.cookies.get({url:base});
@@ -116,14 +131,10 @@ if(!app.requestSingleInstanceLock()){app.quit();}else{
     ipcMain.on('lettide:locale',(event)=>{event.returnValue={initialLanguage:buildLocale,systemLanguage:app.getLocale()};});
     ipcMain.handle('lettide:language',(event,value)=>{const senderAllowed=allowed(event)||event.sender===accountManagerWindow?.webContents&&new URL(event.senderFrame.url).origin===base;if(!senderAllowed||!['en','zh-CN'].includes(value))throw new Error('Invalid language');language=value;window?.setTitle(value==='en'?'Lettide':'叠信');if(accountManagerWindow)accountManagerWindow.setTitle(value==='en'?'Manage accounts · Lettide':'邮箱管理 · 叠信');updateTrayMenu();return {ok:true};});
     ipcMain.handle('lettide:update-state',event=>{if(!allowed(event))throw new Error('Invalid source');return updater?.snapshot()||{status:'idle',currentVersion:app.getVersion()};});
-    ipcMain.handle('lettide:check-update',event=>{if(!allowed(event))throw new Error('Invalid source');updater.language=language;return updater.check();});
+    ipcMain.handle('lettide:check-update',async event=>{if(!allowed(event))throw new Error('Invalid source');updater.language=language;const state=await updater.check();if(state.status==='available')void updater.download().catch(()=>{});return state;});
     ipcMain.handle('lettide:download-update',event=>{if(!allowed(event))throw new Error('Invalid source');return updater.download();});
     ipcMain.handle('lettide:install-update',async event=>{
-      if(!allowed(event))throw new Error('Invalid source');const file=await updater.installer(),en=language==='en';
-      const answer=await dialog.showMessageBox(window,{type:'question',title:en?'Install update':'安装更新',message:en?'Save your draft and install the downloaded update?':'保存草稿并安装已下载的更新？',detail:en?'Lettide will close. Your accounts, messages and saved drafts stay on this device.':'叠信将关闭；已连接账号、邮件和草稿会保留。',buttons:en?['Install update','Later']:['安装更新','稍后'],defaultId:0,cancelId:1,noLink:true});
-      if(answer.response!==0)return {ok:false,cancelled:true};
-      if(!await prepareUpdateDraft())return {ok:false,error:en?'Could not save the current draft. Save it before installing.':'当前草稿未能保存，请先保存后再安装。'};
-      pendingInstaller=file;setImmediate(()=>app.quit());return {ok:true};
+      if(!allowed(event))throw new Error('Invalid source');return installUpdate();
     });
     ipcMain.handle('lettide:open-account-manager',event=>{if(!allowed(event))throw new Error('请求来源无效');openAccountManagerWindow();return {ok:true};});
     ipcMain.handle('lettide:open-add-account',event=>{if(event.sender!==accountManagerWindow?.webContents||new URL(event.senderFrame.url).origin!==base)throw new Error('Invalid source');pendingAddAccount=true;showMainWindow();if(mainReady){pendingAddAccount=false;window.webContents.send('lettide:add-account-request');}return {ok:true};});

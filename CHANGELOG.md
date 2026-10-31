@@ -1,5 +1,19 @@
 # 更新记录 / Changelog
 
+## 0.5.4
+
+### English
+
+- New versions now download in the background as soon as they are found. When one is ready, the sidebar shows a single "Restart to update" button that saves your draft, installs the update and reopens Lettide.
+- If Lettide is hidden in the tray, a system notification announces the ready update, and the tray menu offers "Restart to update".
+- After an update, Lettide tells you which version it was updated to.
+
+### 中文
+
+- 发现新版本后自动在后台下载好；下好后侧栏只显示一个「重启并更新」按钮，点一下就自动保存草稿、安装并重新打开叠信。
+- 叠信缩在托盘时，新版本下好会弹系统通知，托盘菜单里也能直接「重启并更新」。
+- 更新完成后会提示已更新到哪个版本。
+
 ## 0.5.3
 
 ### English

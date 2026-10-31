@@ -26,12 +26,13 @@ function UpdateControl({notice=false}){
  const [state,setState]=useState({status:'idle'}),[error,setError]=useState('');
  useEffect(()=>{let active=true;window.lettide?.updateState?.().then(value=>{if(active)setState(value)}).catch(()=>{});const unsubscribe=window.lettide?.onUpdateState?.(value=>{if(active)setState(value)});return()=>{active=false;unsubscribe?.()}},[]);
  if(!window.lettide?.checkForUpdates)return notice?null:<a href="https://github.com/shixi-11/lettide/releases" target="_blank" rel="noreferrer">{t('下载与更新')}<ArrowRight size={13}/></a>;
- if(notice&&!['available','downloading','ready'].includes(state.status))return null;
- const checking=state.status==='checking',downloading=state.status==='downloading';
- const label=state.status==='available'?'下载更新':state.status==='ready'?'安装更新':downloading?'正在下载更新…':checking?'正在检查更新…':'检查更新';
- const message=state.status==='up-to-date'?'当前已是最新版本':state.status==='available'?'发现新版本':state.status==='ready'?'更新已下载':state.status==='error'?'更新未完成，可重试':'';
+ // New versions download in the background; the sidebar only speaks up once one is ready to install.
+ if(notice&&state.status!=='ready')return null;
+ const checking=state.status==='checking',downloading=state.status==='downloading',version=state.latestVersion?' '+state.latestVersion:'',mac=/Mac/.test(navigator.userAgent);
+ const label=state.status==='available'?'下载更新':state.status==='ready'?(mac?'安装新版本':'重启并更新'):downloading?'正在下载…':checking?'正在检查更新…':state.status==='error'?'重试':'检查更新';
+ const message=state.status==='up-to-date'?t('当前已是最新版本'):state.status==='available'?t('发现新版本')+version:downloading?t('正在下载新版本')+version:state.status==='ready'?t('新版本已准备好')+version:state.status==='error'?t('更新未完成，可重试'):'';
  async function act(){setError('');try{if(state.status==='available')setState(await window.lettide.downloadUpdate());else if(state.status==='ready'){const result=await window.lettide.installUpdate();if(result.error)setError(result.error)}else setState(await window.lettide.checkForUpdates());}catch{setError(t('更新未完成，可重试'))}}
- return <div className={'update-control '+(notice?'update-notice':'')} role={notice?'status':undefined}>{message&&<span>{t(message)}{['available','ready'].includes(state.status)&&state.latestVersion?' '+state.latestVersion:''}</span>}{downloading&&<><progress aria-label={t('更新下载进度')} max="100" value={state.progress||0}/><small>{state.progress||0}%</small></>}{state.releaseUrl&&<a href={state.releaseUrl} target="_blank" rel="noreferrer">{t('查看更新内容')}</a>}<button type="button" className="text-button" disabled={checking||downloading} onClick={act}>{checking||downloading?<Loader2 size={13} className="spin"/>:<RefreshCw size={13}/>} {t(label)}</button>{error&&<small role="alert">{error}</small>}</div>;
+ return <div className={'update-control '+(notice?'update-notice':'')} role={notice?'status':undefined}>{message&&<span>{message}</span>}{downloading&&<><progress aria-label={t('更新下载进度')} max="100" value={state.progress||0}/><small>{state.progress||0}%</small></>}{state.releaseUrl&&<a href={state.releaseUrl} target="_blank" rel="noreferrer">{t('查看更新内容')}</a>}<button type="button" className={state.status==='ready'?'primary':'text-button'} disabled={checking||downloading} onClick={act}>{checking||downloading?<Loader2 size={13} className="spin"/>:<RefreshCw size={13}/>} {t(label)}</button>{error&&<small role="alert">{error}</small>}</div>;
 }
 function IconButton({icon:Icon,label,...props}) {return <button className="icon-button" title={t(label)} aria-label={t(label)} {...props}><Icon size={18}/></button>}
 function ProviderAvatar({provider,small=false}) {const p=providers[provider]||providers.godaddy;return <span aria-hidden="true" className={`provider-avatar ${p.tone} ${small?'small':''}`}>{p.letter}</span>}
@@ -86,7 +87,7 @@ function App() {
  const operationRef=useRef(false),requests=useRef(new Map()),readingView=useRef('original'),targetRef=useRef(target);
  const updatePreparation=useRef(async()=>true);
  useEffect(()=>window.lettide?.onPrepareUpdate?.(()=>updatePreparation.current()),[]);
- const messageCache=useRef(new Map()),serverRevision=useRef(null),bodyRequest=useRef(null);
+ const messageCache=useRef(new Map()),serverRevision=useRef(null),bodyRequest=useRef(null),versionNoted=useRef(false);
  const latestSelection=useRef(null),translationSeq=useRef(0),loadSeq=useRef(0),searchRef=useRef(),accountViews=useRef({});
  useEffect(()=>{const mq=window.matchMedia('(prefers-color-scheme: dark)');const apply=()=>document.documentElement.dataset.theme=theme==='system'?(mq.matches?'dark':'light'):theme;apply();mq.addEventListener('change',apply);localStorage.setItem('mail-theme',theme);return()=>mq.removeEventListener('change',apply)},[theme]);
  useEffect(()=>{document.documentElement.lang=locale();document.title=locale()==='en'?'Lettide':'叠信';window.lettide?.setLanguage?.(locale());},[language]);
@@ -102,6 +103,7 @@ function App() {
   let active=true,timer,polling=false;
   const poll=async()=>{if(polling||!active)return;polling=true;
    try{const state=await api('/status');if(!active)return;setStatus(state);
+    if(window.lettide?.desktop&&state.version&&!versionNoted.current){versionNoted.current=true;try{const seen=localStorage.getItem('lettide-version');if(seen&&seen!==state.version)notify(t('已更新到')+' '+state.version);localStorage.setItem('lettide-version',state.version);}catch{}}
     if(serverRevision.current!==state.revision){serverRevision.current=state.revision;const open=latestSelection.current;await Promise.all([refreshMeta(),refreshMessages(),api('/folders').then(rows=>{if(active)setRemoteFolders(rows)}),open&&api('/messages/'+encodeURIComponent(open)).then(full=>{if(active&&latestSelection.current===open)setSelected(prev=>prev?.id===full.id&&prev.text!==full.text?{...prev,...full}:prev)}).catch(()=>{})]);}
    }catch{}finally{polling=false;if(active)timer=setTimeout(poll,document.hidden?15000:3000);}
   };

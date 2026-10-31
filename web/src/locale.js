@@ -3,7 +3,7 @@ const dictionary={
 
  'Sent copy is still being saved. Try again shortly.':'邮件副本仍在保存，请稍后再操作。',
 
- '检查更新':'Check for updates','正在检查更新…':'Checking for updates…','发现新版本':'Update available','下载更新':'Download update','正在下载更新…':'Downloading update…','更新已下载':'Update downloaded','安装更新':'Install update','当前已是最新版本':'You are up to date','更新未完成，可重试':'Update could not finish. Try again.','更新下载进度':'Update download progress',
+ '检查更新':'Check for updates','正在检查更新…':'Checking for updates…','发现新版本':'Update available','下载更新':'Download update','正在下载更新…':'Downloading update…','更新已下载':'Update downloaded','正在下载新版本':'Downloading version','新版本已准备好':'Ready to install version','重启并更新':'Restart to update','安装新版本':'Install new version','正在下载…':'Downloading…','已更新到':'Updated to version','安装更新':'Install update','当前已是最新版本':'You are up to date','更新未完成，可重试':'Update could not finish. Try again.','更新下载进度':'Update download progress',
 
  '核查发送结果':'Check send status','服务商尚未确认发送结果，请在已发送或草稿中核对。':'The provider has not confirmed the outcome. Check Sent and Drafts before trying again.','暂时无法核查发送结果，请稍后重试。':'Could not verify the send outcome. Try checking again later.',
 
