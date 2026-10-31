@@ -2,11 +2,12 @@ const {app, BrowserWindow, shell, dialog, ipcMain, nativeTheme, Menu, Tray, nati
 const {spawn}=require('node:child_process');
 const path=require('node:path');
 const fs=require('node:fs');
+const {aiConnectionStatus}=require('./ai-connections.cjs');
 const base=!app.isPackaged&&/^http:\/\/127\.0\.0\.1:\d+$/.test(process.env.LETTIDE_TEST_BASE_URL||'')?process.env.LETTIDE_TEST_BASE_URL:'http://127.0.0.1:47831';
 let buildLocale='system';try{buildLocale=require('./build-locale.json').language||'system';}catch{}
 let language='zh-CN';
 const root=app.isPackaged?process.resourcesPath:path.resolve(__dirname,'..');
-let updater,pendingInstaller,updateTimer,updateInterval;
+let updater,pendingInstaller,updateTimer,updateInterval,aiConfiguration;
 let window,accountManagerWindow,tray,isQuitting=false,backendStopped=false,quitPending=false,mainReady=false,pendingAddAccount=false;
 app.setName(buildLocale==='zh-CN'?'叠信':'Lettide');
 app.setPath('userData',path.join(app.getPath('appData'),'Lettide'));
@@ -131,14 +132,20 @@ if(!app.requestSingleInstanceLock()){app.quit();}else{
     if(process.platform==='darwin')Menu.setApplicationMenu(Menu.buildFromTemplate([{label:language==='en'?'Lettide':'叠信',submenu:[{role:'about'},{type:'separator'},{role:'hide'},{role:'hideOthers'},{type:'separator'},{role:'quit'}]},{role:'editMenu'},{role:'windowMenu'}]));
     ipcMain.handle('lettide:configure-ai',async(event)=>{
       if(event.sender!==window?.webContents||new URL(event.senderFrame.url).origin!==base)throw new Error('请求来源无效');
+      if(aiConfiguration)return aiConfiguration;
+      aiConfiguration=(async()=>{
       const script=path.join(root,'scripts','Configure-AI.ps1');
       const {dataDirectory}=await import(require('node:url').pathToFileURL(path.join(root,'backend','src','store.js')).href);
       return await new Promise(resolve=>{
         const unix=process.platform!=='win32';const ps=spawn(unix?process.execPath:'powershell.exe',unix?[path.join(root,'scripts','Configure-AI.mjs')]:['-NoProfile','-ExecutionPolicy','Bypass','-File',script],{windowsHide:true,env:{...process.env,LETTIDE_DATA_DIR:dataDirectory(),LETTIDE_EXECUTABLE:app.isPackaged?(process.platform==='linux'&&process.env.APPIMAGE?process.env.APPIMAGE:process.execPath):'',LETTIDE_APPIMAGE:process.platform==='linux'&&process.env.APPIMAGE?'1':'',LETTIDE_MCP_ENTRY:path.join(root,'backend','src','mcp.js'),ELECTRON_RUN_AS_NODE:unix?'1':''}});
-        let failed=false;ps.on('error',()=>{failed=true;resolve({ok:false,message:'无法打开配置工具，请运行项目中的连接AI助手.cmd。'});});
-        ps.on('exit',code=>{if(!failed)resolve({ok:code===0,message:code===0?'已配置找到的客户端，重启对应客户端后可用。':'配置未完成，请检查已安装的 AI 客户端。'});});
+        let error='setup-failed';ps.stdout.resume();ps.stderr.on('data',chunk=>{const text=chunk.toString();if(/JSON|配置不是有效|configuration is invalid/i.test(text))error='invalid-config';else if(/EACCES|EPERM|Access.*denied|UnauthorizedAccess|拒绝访问/i.test(text))error='permission-denied';});
+        ps.on('error',()=>resolve({ok:false,error:'launch-failed'}));
+        ps.on('close',code=>resolve({ok:code===0,...(code===0?{}:{error})}));
       });
+      })();
+      try{return await aiConfiguration}finally{aiConfiguration=null}
     });
+    ipcMain.handle('lettide:ai-status',event=>{if(!allowed(event))throw new Error('Invalid source');return aiConnectionStatus();});
     try{await startService();createTray();openWindow();await setupUpdater();}catch(e){dialog.showErrorBox('叠信启动失败',e.message);app.quit();}
   });
   app.on('before-quit',event=>{
