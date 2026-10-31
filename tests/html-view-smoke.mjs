@@ -1,0 +1,47 @@
+// Original-page view and server search, against an isolated fictional service (no real mailbox).
+import assert from 'node:assert/strict';
+import path from 'node:path';
+import os from 'node:os';
+import {fileURLToPath,pathToFileURL} from 'node:url';
+import {mkdtemp,rm,mkdir} from 'node:fs/promises';
+import {createServer} from 'node:http';
+import {Store} from '../backend/src/store.js';
+import {createApp} from '../backend/src/server.js';
+import {HTML_BODY_FORMAT,BODY_TEXT_FORMAT} from '../backend/src/mail.js';
+const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+const pw=process.env.PLAYWRIGHT_MODULE||path.join(os.homedir(),'.cache/codex-runtimes/codex-primary-runtime/dependencies/node/node_modules/playwright/index.mjs');
+const {chromium}=await import(pathToFileURL(pw).href);
+const output=process.env.LETTIDE_SHOTS||path.join(root,'output','html-view');await mkdir(output,{recursive:true});
+const dir=await mkdtemp(path.join(os.tmpdir(),'lettide-html-'));
+const store=await new Store({file:path.join(dir,'state'),codec:{protect:async x=>x,unprotect:async x=>x}}).open();
+const now=Date.now(),iso=ms=>new Date(ms).toISOString();
+const row=(id,subject,sender,extra={})=>({id,accountId:'acct',folder:'inbox',subject,from:{name:sender,address:sender.toLowerCase()+'@example.com'},to:[{address:'work@example.com'}],date:iso(now-60000),text:'Fictional preview',textFormat:BODY_TEXT_FORMAT,bodyLoaded:false,unread:false,starred:false,providerRef:{type:'fixture'},attachments:[],...extra});
+await store.mutate(s=>{s.accounts=[{id:'acct',name:'Fixture',email:'fixture@example.com',provider:'imap',verifiedAt:iso(now),lastSync:iso(now)}];s.messages=[row('html-mail','Autumn collection preview','Studio'),row('plain-mail','Plain note','Ava',{date:iso(now-120000)})];});
+const page600=`<table width="600" align="center" style="width:600px;border-collapse:collapse;font-family:Arial"><tr><td style="background:#1f3b5c;color:#fff;padding:28px;font-size:26px">Autumn collection</td></tr><tr><td style="padding:24px"><img src="https://images.example.test/hero.png" width="552" height="200" alt="Hero"><p style="font-size:16px;line-height:1.6">Fictional marketing copy for layout checks only.</p><a href="https://shop.example.test/new" style="display:inline-block;background:#377ffa;color:#fff;padding:12px 22px;border-radius:6px;text-decoration:none">Browse the collection</a>${'<p>More fictional text.</p>'.repeat(14)}</td></tr></table>`;
+const loader=async(_s,m)=>{Object.assign(m,m.id==='html-mail'?{text:'Autumn collection\nFictional marketing copy',textFormat:BODY_TEXT_FORMAT,html:page600,htmlFormat:HTML_BODY_FORMAT}:{text:'Just a plain fictional note.',textFormat:BODY_TEXT_FORMAT,html:null,htmlFormat:HTML_BODY_FORMAT},{bodyLoaded:true});return m;};
+const searcher=async(_s,a)=>({messages:[{...row('old-mail','Old invoice from last year','Ledger',{date:iso(now-400*86400000)}),accountId:a.id}],more:false});
+const port=47962,service=await createApp({store,port,messageLoader:loader,serverSearcher:searcher,folderLister:async()=>[],mailSyncer:async()=>[],mailSender:async()=>{throw new Error('No live mail allowed')}}),server=createServer(service);
+await new Promise(r=>server.listen(port,'127.0.0.1',r));
+const browser=await chromium.launch({headless:true,channel:'msedge'});const checks=[];
+try{
+ const page=await browser.newPage({viewport:{width:1366,height:900},locale:'zh-CN'});
+ const remote=[];await page.route(/example\.test/,route=>{remote.push(route.request().url());route.fulfill({status:200,contentType:'image/png',body:Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=','base64')});});
+ await page.goto(`http://127.0.0.1:${port}/`);await page.getByText('Autumn collection preview').first().click();
+ const frame=page.locator('iframe.mail-page-frame');await frame.waitFor({timeout:15000});
+ assert.equal(await frame.getAttribute('sandbox'),'allow-popups allow-popups-to-escape-sandbox');
+ const inner=page.frameLocator('iframe.mail-page-frame');await inner.getByText('Browse the collection').waitFor();
+ assert.equal(await inner.getByRole('link',{name:'Browse the collection'}).getAttribute('target'),'_blank');checks.push('Original view renders the page in a sandboxed frame; links open outside');
+ await page.waitForTimeout(800);assert.equal(remote.length,0);await page.getByRole('button',{name:'显示图片'}).waitFor();checks.push('Remote images stay blocked until asked');
+ const fit=await page.evaluate(()=>{const frames=[...document.querySelectorAll('.mail-page-card iframe')],shown=frames.find(f=>f.classList.contains('mail-page-frame')),probe=frames.find(f=>f!==shown),d=probe?.contentDocument;return {frame:shown.getBoundingClientRect().height,content:d?Math.max(d.documentElement.scrollHeight,d.body.scrollHeight):0};});
+ assert.ok(fit.content>600&&Math.abs(fit.frame-fit.content)<=4,'frame height follows content: '+JSON.stringify(fit));checks.push('Frame height follows the content ('+Math.round(fit.frame)+'px)');
+ await page.screenshot({path:path.join(output,'原文-日间.png')});
+ await page.getByRole('button',{name:'显示图片'}).click();await page.waitForTimeout(800);assert.ok(remote.some(u=>u.includes('hero.png')));checks.push('Show images loads them for this mail');
+ await page.evaluate(()=>{document.documentElement.dataset.theme='dark';});await page.waitForTimeout(400);await page.screenshot({path:path.join(output,'原文-夜间.png')});
+ await page.setViewportSize({width:900,height:900});await page.waitForTimeout(500);
+ const narrow=await page.evaluate(()=>({doc:document.documentElement.scrollWidth,win:innerWidth}));assert.ok(narrow.doc<=narrow.win+1,'page does not overflow sideways');await page.screenshot({path:path.join(output,'原文-窄窗.png')});checks.push('Wide table does not break the layout at 900px');
+ await page.setViewportSize({width:1366,height:900});
+ await page.getByText('Plain note').first().click();await page.getByText('Just a plain fictional note.').waitFor();assert.equal(await page.locator('iframe.mail-page-frame').count(),0);checks.push('Plain-text mail keeps the text view');
+ await page.getByRole('textbox',{name:'搜索邮件'}).fill('invoice');await page.getByRole('button',{name:'在邮箱服务器上搜索'}).click();
+ await page.getByText('Old invoice from last year').first().waitFor({timeout:15000});await page.getByText('服务器上找到 1 封较早的邮件').waitFor();await page.screenshot({path:path.join(output,'服务器搜索.png')});checks.push('Server search adds older mail to the list on request');
+ console.log(JSON.stringify({ok:true,checks,screenshots:output},null,1));
+}finally{await browser.close();server.closeAllConnections?.();await new Promise(r=>server.close(r));await store.close?.();await rm(dir,{recursive:true,force:true}).catch(()=>{});}
