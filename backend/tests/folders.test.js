@@ -79,6 +79,15 @@ test('Gmail draft moved to trash leaves Drafts, as Gmail hides trashed mail from
  assert.deepEqual(m.folderIds,['trash']);
 });
 
+test('Gmail sync settles a cached draft that was trashed earlier, even when the folder list is unchanged',async()=>{
+ const account={id:'gmail-4',provider:'gmail',email:'a@example.test',accessToken:'mock',expiresAt:Date.now()+3600000},state=stateFor(account);
+ state.messages.push({id:'gmail-4:gmail:d1',accountId:account.id,folder:'trash',folderIds:['drafts','trash'],date:new Date().toISOString(),providerRef:{type:'gmail',id:'d1',labelIds:['DRAFT','TRASH']}},{id:'gmail-4:gmail:m2',accountId:account.id,folder:'sent',folderIds:['sent'],date:new Date().toISOString(),providerRef:{type:'gmail',id:'m2',labelIds:['SENT']}});
+ const deps={fetchImpl:async url=>{const u=new URL(url);if(u.pathname.endsWith('/labels'))return json({labels:[]});if(u.pathname.endsWith('/messages'))return json({messages:[]});throw new Error(`Unexpected mock request ${url}`);}};
+ await syncAccount(state,account,'inbox','',20,deps);
+ assert.deepEqual(state.messages.find(m=>m.id==='gmail-4:gmail:d1').folderIds,['trash']);
+ assert.deepEqual(state.messages.find(m=>m.id==='gmail-4:gmail:m2').folderIds,['sent']);
+});
+
 test('IMAP custom folder sync fetches the existing remote folder and preserves its UID path',async()=>{
  const account={id:'qq-2',provider:'qq',email:'a@example.test',password:'mock'},state=stateFor(account),boxes=[{path:'INBOX',name:'INBOX',specialUse:'\\Inbox'},{path:'Sent',name:'Sent',specialUse:'\\Sent'},{path:'Projects/Work',name:'Projects'}],opened=[];
  const deps={imapClientFactory:()=>({mailbox:{exists:1,uidValidity:7},connect:async()=>{},logout:async()=>{},list:async()=>boxes,getMailboxLock:async box=>{opened.push(box);return {release(){}};},fetch:async function*(){yield {uid:4,flags:new Set(),envelope:{date:new Date('2026-01-01')},source:Buffer.from('From: sender@example.test\r\nTo: a@example.test\r\nSubject: Test\r\n\r\nBody')}}})};
