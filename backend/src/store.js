@@ -31,6 +31,7 @@ const legacyWindowsFile=()=>path.join(process.env.LOCALAPPDATA||path.join(os.hom
 const exists=file=>fs.access(file).then(()=>true,()=>false);
 const sha256=data=>createHash('sha256').update(data).digest('hex');
 const attachmentName=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+const intermediateName=/^\d+\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(tmp|bak|init|migrate)$/;
 const hasInlineAttachments=state=>(state?.messages||[]).some(m=>(m.attachments||[]).some(a=>typeof a.content==='string'));
 export class Store {
   constructor({file, legacyFile, codec=null,readOnly=false}={}) {
@@ -39,6 +40,19 @@ export class Store {
     this.file=file; this.legacyFile=legacyFile??(usesDefault&&process.platform==='win32'&&!process.env.LETTIDE_DATA_DIR?legacyWindowsFile():null);
     this.codec=codec; this.readOnly=readOnly; this.state=null; this.revision=0; this.queue=Promise.resolve(); this.lockHandle=null; this.windowsCrypto=createWindowsCodec({keyFile:file+'.key.dpapi',dpapi}); this.linuxCrypto=createLinuxCodec({keyId:createHash('sha256').update(path.resolve(file)).digest('hex')});
   }
+  async intermediateFiles(){const dir=path.dirname(this.file),prefix=path.basename(this.file)+'.';return (await fs.readdir(dir,{withFileTypes:true})).filter(e=>e.isFile()&&e.name.startsWith(prefix)&&intermediateName.test(e.name.slice(prefix.length))).map(e=>path.join(dir,e.name));}
+  // Only a missing state can be recovered, under the writer lock. Tmp files were never committed.
+  async recoverBackup(){
+    try{await fs.stat(this.file);return;}catch(e){if(e.code!=='ENOENT')throw e;}
+    const backups=[];for(const file of await this.intermediateFiles())if(file.endsWith('.bak'))backups.push({file,mtime:(await fs.stat(file)).mtimeMs});
+    backups.sort((a,b)=>b.mtime-a.mtime||b.file.localeCompare(a.file));
+    for(const backup of backups){
+      try{JSON.parse((await this.decrypt(await fs.readFile(backup.file))).toString('utf8'));}catch{continue;}
+      await fs.rename(backup.file,this.file);console.error('[Lettide] Recovered stored data from backup');return;
+    }
+    if(backups.length)throw new Error('No readable store backup');
+  }
+  async collectIntermediateFiles(){for(const file of await this.intermediateFiles())await fs.rm(file,{force:true});}
   // Copies (never moves) data from the pre-0.3.12 location. The state file lands last, so its presence means the copy finished.
   async migrateLegacy(){
     if(!this.legacyFile||path.resolve(this.legacyFile)===path.resolve(this.file)||await exists(this.file)||!await exists(this.legacyFile))return;
@@ -54,15 +68,15 @@ export class Store {
     if(process.platform!=='win32'&&!this.readOnly)await fs.chmod(path.dirname(this.file),0o700);
     if(!this.readOnly) await this.acquireWriterLock();
     try {
-      if(!this.readOnly) await this.migrateLegacy();
+      if(!this.readOnly){await this.recoverBackup();await this.migrateLegacy();}
       let raw; try { raw=await fs.readFile(this.file); } catch(e) {
         if(e.code!=='ENOENT'||this.readOnly) throw e;
         this.state=initial(); const encrypted=await this.encrypt(Buffer.from(JSON.stringify(this.state))),tmp=`${this.file}.${process.pid}.${randomUUID()}.init`;
         const h=await fs.open(tmp,'wx',0o600);try{await h.writeFile(encrypted);await h.sync();}finally{await h.close();}
-        try{await fs.link(tmp,this.file);await fs.rm(tmp,{force:true});return this;}catch(err){await fs.rm(tmp,{force:true});if(err.code!=='EEXIST')throw err;raw=await fs.readFile(this.file);}
+        try{await fs.link(tmp,this.file);await fs.rm(tmp,{force:true});await this.collectIntermediateFiles();return this;}catch(err){await fs.rm(tmp,{force:true});if(err.code!=='EEXIST')throw err;raw=await fs.readFile(this.file);}
       }
       if(raw){if(process.platform!=='win32'&&!this.readOnly)await fs.chmod(this.file,0o600);this.state=JSON.parse((await this.decrypt(raw)).toString('utf8'));}
-      if(!this.readOnly){if(hasInlineAttachments(this.state))await this.save();await this.collectAttachmentFiles();}
+      if(!this.readOnly){if(hasInlineAttachments(this.state))await this.save();await this.collectAttachmentFiles();await this.collectIntermediateFiles();}
       return this;
     } catch(e){await this.close();if(e.message==='Windows protected storage failed'||e.message.startsWith('macOS Keychain')||e.message.startsWith('Linux Secret Service')||e.message.startsWith('Another email service'))throw e;if(e.code==='ENOENT'&&this.readOnly)throw e;throw new Error('Stored data could not be safely opened; refusing to reset it');}
   }
