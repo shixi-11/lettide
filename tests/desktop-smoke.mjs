@@ -40,7 +40,7 @@ try{
  checks.push('Account manager opens as a separate isolated native window and closes to background');
  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>!w.webContents.getURL().includes('window=accounts')).close());
  assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>!w.webContents.getURL().includes('window=accounts')).isVisible()),false);
- const labels=await app.evaluate(()=>globalThis.__trayMenu.items.map(i=>i.label).filter(Boolean));assert.deepEqual(labels,['Open Lettide','Manage accounts','Quit Lettide']);
+ const labels=await app.evaluate(()=>globalThis.__trayMenu.items.map(i=>i.label).filter(Boolean));assert.deepEqual(labels,['Open Lettide','Manage accounts','New mail alerts','Quit Lettide']);
  await app.evaluate(()=>globalThis.__trayMenu.items[0].click());assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows().find(w=>!w.webContents.getURL().includes('window=accounts')).isVisible()),true);checks.push('Window close hides to tray; localized tray Open restores the window');
  const output=path.join(root,'output/desktop-checks');await mkdir(output,{recursive:true});await page.screenshot({path:path.join(output,'Native-English.jpg'),type:'jpeg',quality:90,animations:'disabled'});await writeFile(path.join(output,'checks.json'),JSON.stringify({checks,scope:'Development Electron with isolated fictional service; no real mailbox accessed'},null,2));
  const closed=app.waitForEvent('close');

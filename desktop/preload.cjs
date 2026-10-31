@@ -15,5 +15,8 @@ contextBridge.exposeInMainWorld('lettide',{
  setLanguage:language=>ipcRenderer.invoke('lettide:language',language),
  openAccountManager:()=>ipcRenderer.invoke('lettide:open-account-manager'),
  openAddAccount:()=>ipcRenderer.invoke('lettide:open-add-account'),
+ desktopPrefs:()=>ipcRenderer.invoke('lettide:desktop-prefs'),
+ setDesktopPrefs:patch=>ipcRenderer.invoke('lettide:set-desktop-prefs',patch),
+ onOpenMessage:callback=>{const listener=(_event,value)=>callback(value);ipcRenderer.on('lettide:open-message',listener);return()=>ipcRenderer.removeListener('lettide:open-message',listener);},
  onAddAccountRequest:callback=>{const listener=()=>callback();ipcRenderer.on('lettide:add-account-request',listener);return()=>ipcRenderer.removeListener('lettide:add-account-request',listener);},
 });

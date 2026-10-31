@@ -9,6 +9,7 @@ let language='zh-CN';
 const root=app.isPackaged?process.resourcesPath:path.resolve(__dirname,'..');
 let updater,pendingInstaller,updateTimer,updateInterval,aiConfiguration;
 let window,accountManagerWindow,tray,isQuitting=false,backendStopped=false,quitPending=false,mainReady=false,pendingAddAccount=false;
+let mailWatch={timer:null,seen:null,unread:0,notes:new Set()},desktopPrefs={newMailAlerts:true},prefsFile=null;
 app.setName(buildLocale==='zh-CN'?'叠信':'Lettide');
 app.setPath('userData',path.join(app.getPath('appData'),'Lettide'));
 if(!app.isPackaged&&process.env.LETTIDE_TEST_USER_DATA)app.setPath('userData',process.env.LETTIDE_TEST_USER_DATA);
@@ -18,10 +19,12 @@ function updateTrayMenu(){
   if(!tray)return;
   const en=language==='en';
   const ready=updater?.snapshot().status==='ready'?updater.snapshot().latestVersion:null;
-  tray.setToolTip(ready?(en?`Lettide · ${ready} is ready`:`叠信 · 新版本 ${ready} 已准备好`):en?'Lettide':'叠信');
+  const unread=mailWatch.unread?(en?` · ${mailWatch.unread} unread`:` · ${mailWatch.unread} 封未读`):'';
+  tray.setToolTip(ready?(en?`Lettide · ${ready} is ready`:`叠信 · 新版本 ${ready} 已准备好`)+unread:(en?'Lettide':'叠信')+unread);
   tray.setContextMenu(Menu.buildFromTemplate([
     {label:en?'Open Lettide':'打开叠信',click:()=>showMainWindow()},
     {label:en?'Manage accounts':'管理邮箱',click:()=>openAccountManagerWindow()},
+    {label:en?'New mail alerts':'新邮件提醒',type:'checkbox',checked:desktopPrefs.newMailAlerts,click:item=>setDesktopPrefs({newMailAlerts:item.checked})},
     {type:'separator'},
     ...(ready?[{label:en?`Restart to update to ${ready}`:`重启并更新到 ${ready}`,click:async()=>{const result=await installUpdate();if(result.error)dialog.showErrorBox(en?'Update not installed':'暂未安装更新',result.error);}},{type:'separator'}]:[]),
     {label:en?'Quit Lettide':'退出叠信',click:()=>app.quit()},
@@ -34,6 +37,53 @@ function createTray(){
   tray=new Tray(icon);tray.on('double-click',showMainWindow);tray.on('click',()=>{if(process.platform==='darwin')showMainWindow();});updateTrayMenu();
 }
 function showMainWindow(){if(!window)return;if(window.isMinimized())window.restore();window.show();window.focus();}
+// Preferences live next to the mail data (~/.lettide), not in AppData.
+async function loadDesktopPrefs(){
+ const {dataDirectory}=await import(require('node:url').pathToFileURL(path.join(root,'backend','src','store.js')).href);
+ prefsFile=path.join(!app.isPackaged&&process.env.LETTIDE_TEST_USER_DATA?app.getPath('userData'):dataDirectory(),'desktop-preferences.json');
+ try{const saved=JSON.parse(fs.readFileSync(prefsFile,'utf8'));if(typeof saved.newMailAlerts==='boolean')desktopPrefs.newMailAlerts=saved.newMailAlerts;}catch{}
+}
+function setDesktopPrefs(patch){
+ if(typeof patch?.newMailAlerts==='boolean')desktopPrefs.newMailAlerts=patch.newMailAlerts;
+ try{if(prefsFile){fs.mkdirSync(path.dirname(prefsFile),{recursive:true});fs.writeFileSync(prefsFile,JSON.stringify(desktopPrefs));}}catch{}
+ updateTrayMenu();return {...desktopPrefs};
+}
+// A small accent dot for the Windows taskbar button; no red, matching the app accent.
+function unreadDot(){
+ const size=16,data=Buffer.alloc(size*size*4);
+ for(let y=0;y<size;y++)for(let x=0;x<size;x++){const d=Math.hypot(x+.5-size/2,y+.5-size/2),edge=Math.max(0,Math.min(1,6.5-d)),ring=Math.max(0,Math.min(1,7.5-d)),i=(y*size+x)*4,a=Math.round(255*ring);
+  // BGRA, premultiplied: white ring around an accent (#377ffa) dot.
+  data[i]=Math.round((0xfa*edge+255*(1-edge))*ring);data[i+1]=Math.round((0x7f*edge+255*(1-edge))*ring);data[i+2]=Math.round((0x37*edge+255*(1-edge))*ring);data[i+3]=a;}
+ return nativeImage.createFromBitmap(data,{width:size,height:size});
+}
+function showUnread(count){
+ if(mailWatch.unread===count)return;mailWatch.unread=count;
+ if(process.platform==='darwin'||process.platform==='linux')app.setBadgeCount(count);
+ if(process.platform==='win32'&&window&&!window.isDestroyed())window.setOverlayIcon(count?unreadDot():null,count?(language==='en'?`${count} unread`:`${count} 封未读`):'');
+ updateTrayMenu();
+}
+function openMessage(message){showMainWindow();if(mainReady&&window&&!window.isDestroyed())window.webContents.send('lettide:open-message',{id:message.id,accountId:message.accountId});}
+function keepNote(note,onClick){mailWatch.notes.add(note);const done=()=>mailWatch.notes.delete(note);note.on('click',()=>{done();onClick();});note.on('close',done);note.show();}
+function announceMail(rows){
+ if(!Notification.isSupported())return;
+ const en=language==='en',sender=m=>m.from?.name||m.from?.address||(en?'Unknown sender':'未知发件人'),subject=m=>m.subject||(en?'(No subject)':'（无主题）');
+ const sorted=[...rows].sort((a,b)=>Date.parse(b.date)-Date.parse(a.date));
+ if(sorted.length>3){keepNote(new Notification({title:en?`${sorted.length} new emails`:`${sorted.length} 封新邮件`,body:sorted.slice(0,3).map(m=>`${sender(m)}：${subject(m)}`).join('\n')}),showMainWindow);return;}
+ for(const m of sorted)keepNote(new Notification({title:sender(m),body:subject(m)}),()=>openMessage(m));
+}
+// The backend syncs on its own; the desktop shell only watches the unread inbox
+// through the same signed-in session as the window. The first round is a baseline.
+async function checkMail(){
+ if(!window||window.isDestroyed())return;
+ try{
+  const cookies=await window.webContents.session.cookies.get({url:base});const session=cookies.map(c=>c.name+'='+c.value).join('; ');if(!session)return;
+  const response=await fetch(base+'/api/messages?folder=inbox&unread=true&summary=true&limit=200',{headers:{Cookie:session},signal:AbortSignal.timeout(10000)});if(!response.ok)return;
+  const {items=[],total=0}=await response.json();showUnread(total);
+  if(mailWatch.seen){const fresh=items.filter(m=>!mailWatch.seen.has(m.id)&&Date.now()-Date.parse(m.date)<3*24*60*60*1000);if(fresh.length&&desktopPrefs.newMailAlerts&&!(window.isVisible()&&window.isFocused()))announceMail(fresh);}
+  const seen=new Set([...(mailWatch.seen||[]),...items.map(m=>m.id)]);mailWatch.seen=seen.size>5000?new Set(items.map(m=>m.id)):seen;
+ }catch{}
+}
+function startMailWatch(){if(mailWatch.timer)return;void checkMail();mailWatch.timer=setInterval(checkMail,30000);mailWatch.timer.unref?.();}
 async function startService(){
   let existing;try{existing=await fetch(base+'/',{signal:AbortSignal.timeout(1500)});}catch{}
   if(existing?.ok){
@@ -92,6 +142,8 @@ async function stopSharedService(sessionCookie){
  const session=sessionCookie||(cookies||[]).map(c=>c.name+'='+c.value).join('; ');if(!session)return;
  const response=await fetch(base+'/api/service/quit',{method:'POST',headers:{Origin:base,Cookie:session,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(5000)});
  if(!response.ok)throw new Error('Could not stop the mail service');
+ // A test service has its own store; never wait on the real data lock for it.
+ if(base!=='http://127.0.0.1:47831')return;
  // The listener may close before queued writes finish. Wait for the shared
  // writer lock to be removed before an installer can replace its executable.
  const {dataDirectory}=await import(require('node:url').pathToFileURL(path.join(root,'backend','src','store.js')).href);
@@ -106,7 +158,7 @@ function openWindow(){
   window.webContents.on('will-navigate',navigation);window.webContents.on('will-redirect',navigation);
   window.webContents.session.setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
   window.once('ready-to-show',()=>window.show());
-  window.webContents.on('did-finish-load',()=>{mainReady=true;if(pendingAddAccount){pendingAddAccount=false;window.webContents.send('lettide:add-account-request');}});
+  window.webContents.on('did-finish-load',()=>{mainReady=true;startMailWatch();if(pendingAddAccount){pendingAddAccount=false;window.webContents.send('lettide:add-account-request');}});
   window.on('close',event=>{if(!isQuitting){event.preventDefault();window.hide();}});
   window.on('closed',()=>{window=null;mainReady=false;});
   void window.loadURL(base+'/');
@@ -157,7 +209,9 @@ if(!app.requestSingleInstanceLock()){app.quit();}else{
       try{return await aiConfiguration}finally{aiConfiguration=null}
     });
     ipcMain.handle('lettide:ai-status',event=>{if(!allowed(event))throw new Error('Invalid source');return aiConnectionStatus();});
-    try{await startService();createTray();openWindow();await setupUpdater();}catch(e){dialog.showErrorBox('叠信启动失败',e.message);app.quit();}
+    ipcMain.handle('lettide:desktop-prefs',event=>{if(!allowed(event))throw new Error('Invalid source');return {...desktopPrefs};});
+    ipcMain.handle('lettide:set-desktop-prefs',(event,patch)=>{if(!allowed(event))throw new Error('Invalid source');return setDesktopPrefs(patch);});
+    try{await startService();await loadDesktopPrefs();createTray();openWindow();await setupUpdater();}catch(e){dialog.showErrorBox('叠信启动失败',e.message);app.quit();}
   });
   app.on('before-quit',event=>{
     if(backendStopped){isQuitting=true;tray?.destroy();return;}
