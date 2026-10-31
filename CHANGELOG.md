@@ -1,5 +1,23 @@
 # 更新记录 / Changelog
 
+## 0.5.3
+
+### English
+
+- Show message bodies the way Gmail and other clients render them: paragraphs and table rows keep their line breaks, hidden preview text and Outlook-only blocks no longer appear, and links show only their text. The plain-text version is used when the HTML is only an image or a "view online" link. Messages opened before this update refresh their text once in the background.
+- Drafts created or sent in Gmail on the web, on a phone or by an AI assistant now leave the Drafts list within about 30 seconds instead of up to half an hour.
+- Prefetch the bodies of the top 30 messages in a list, so opening mail from slower providers rarely waits.
+- Recover mailbox data automatically if the app stopped in the middle of saving, instead of starting with an empty mailbox; leftover temporary files are cleaned up.
+- Redesign "Connect AI assistants": each of Codex, Claude Code and Claude Desktop shows whether it is connected, one click connects the missing ones, and other AI tools get copyable setup instructions.
+
+### 中文
+
+- 正文按 Gmail 等客户端显示的样子排版：段落和表格行正常断行，隐藏的预览文字和 Outlook 专用内容不再出现，链接只显示文字。HTML 版只有图片或「在线查看」链接时改用纯文字版。更新前打开过的邮件，再次打开时会在后台重排一次。
+- 在 Gmail 网页、手机或 AI 助手里建的草稿，发出或删除后约 30 秒内从叠信草稿里消失，原来最多要半小时。
+- 列表最上面 30 封邮件预先下载正文，打开响应较慢的邮箱也很少需要等待。
+- 保存过程中如果程序意外中断，下次启动会自动恢复邮箱数据，不会变成空邮箱；残留的临时文件会自动清理。
+- 改版「连接 AI 助手」：Codex、Claude Code、Claude 桌面端分别显示是否已连接，一键连接还没连上的；其他 AI 工具可复制连接指令。
+
 ## 0.5.2
 
 ### English
