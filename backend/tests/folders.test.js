@@ -71,6 +71,14 @@ test('Gmail moves messages between inbox, trash, junk and archive and restores t
  }
 });
 
+test('Gmail draft moved to trash leaves Drafts, as Gmail hides trashed mail from other labels',async()=>{
+ const account={id:'gmail-3',provider:'gmail',email:'a@example.test',accessToken:'mock',expiresAt:Date.now()+3600000};
+ const deps={fetchImpl:async url=>url.endsWith('/labels')?json({labels:[]}):url.includes('/modify')?json({id:'d1',labelIds:['DRAFT','TRASH']}):json({})};
+ const state=stateFor(account),m={id:'gmail-3:gmail:d1',accountId:account.id,folder:'drafts',folderIds:['drafts'],providerRef:{type:'gmail',id:'d1',labelIds:['DRAFT']}};state.messages.push(m);
+ await updateRemote(state,m,{folder:'trash'},{...deps});
+ assert.deepEqual(m.folderIds,['trash']);
+});
+
 test('IMAP custom folder sync fetches the existing remote folder and preserves its UID path',async()=>{
  const account={id:'qq-2',provider:'qq',email:'a@example.test',password:'mock'},state=stateFor(account),boxes=[{path:'INBOX',name:'INBOX',specialUse:'\\Inbox'},{path:'Sent',name:'Sent',specialUse:'\\Sent'},{path:'Projects/Work',name:'Projects'}],opened=[];
  const deps={imapClientFactory:()=>({mailbox:{exists:1,uidValidity:7},connect:async()=>{},logout:async()=>{},list:async()=>boxes,getMailboxLock:async box=>{opened.push(box);return {release(){}};},fetch:async function*(){yield {uid:4,flags:new Set(),envelope:{date:new Date('2026-01-01')},source:Buffer.from('From: sender@example.test\r\nTo: a@example.test\r\nSubject: Test\r\n\r\nBody')}}})};
@@ -124,7 +132,7 @@ test('Gmail move commits local labels after one preflight label lookup and no po
  const deps={fetchImpl:async(url,init={})=>{if(url.endsWith('/labels')){labelCalls++;if(labelCalls>1)throw new Error('unexpected post-move label lookup');return json({labels:[{id:'INBOX',name:'INBOX',type:'system'},{id:'TRASH',name:'TRASH',type:'system'},{id:'SPAM',name:'SPAM',type:'system'},{id:'custom-1',name:'项目',type:'user'}]});}if(url.includes('/modify')){modifyCalls++;return json({});}throw new Error(`Unexpected mock request ${url}`);}};
  const customId='gmail:Y3VzdG9tLTE',m={id:'gmail-atomic:gmail:m1',accountId:account.id,folder:'inbox',folderIds:['inbox','gmail:Y3VzdG9tLTE'],providerRef:{type:'gmail',id:'m1',labelIds:['INBOX','custom-1']}};state.messages.push(m);
  await updateRemote(state,m,{folder:'trash'},deps);
- assert.equal(labelCalls,1);assert.equal(modifyCalls,1);assert.deepEqual(new Set(m.providerRef.labelIds),new Set(['custom-1','TRASH']));assert.deepEqual(new Set(m.folderIds),new Set(['trash','gmail:Y3VzdG9tLTE']));
+ assert.equal(labelCalls,1);assert.equal(modifyCalls,1);assert.deepEqual(new Set(m.providerRef.labelIds),new Set(['custom-1','TRASH']));assert.deepEqual(m.folderIds,['trash']);
 });
 
 test('Graph move is the final provider request and commits the returned message ID locally',async()=>{
