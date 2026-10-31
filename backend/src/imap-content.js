@@ -2,7 +2,7 @@
 export function describeParts(structure,messageId){
  const text=[],attachments=[];
  const walk=node=>{if(!node)return;const type=String(node.type||'').toLowerCase(),filename=node.dispositionParameters?.filename||node.parameters?.name;
-  if(node.disposition==='attachment'||filename||node.id&&!type.startsWith('text/')||!node.childNodes?.length&&type&&!type.startsWith('text/')&&!type.startsWith('multipart/')){attachments.push({id:messageId+':part:'+node.part,filename:filename||'attachment',size:node.size||0,remotePart:node.part});return;}
+  if(node.disposition==='attachment'||filename||node.id&&!type.startsWith('text/')||!node.childNodes?.length&&type&&!type.startsWith('text/')&&!type.startsWith('multipart/')){attachments.push({id:messageId+':part:'+node.part,filename:filename||'attachment',size:node.size||0,...(typeof node.id==='string'&&node.id.trim()?{cid:node.id.trim().replace(/^<|>$/g,'')}:{}),remotePart:node.part});return;}
   if(node.childNodes?.length){node.childNodes.forEach(walk);return;}
   if(type==='text/plain'||type==='text/html')text.push({...node,part:node.part||'1',type});
  };

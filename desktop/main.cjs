@@ -104,6 +104,8 @@ function openWindow(){
   window.webContents.setWindowOpenHandler(({url})=>{external(url);return {action:'deny'};});
   const navigation=(event,url)=>{const u=new URL(url);if(u.origin!==base){event.preventDefault();external(url);}};
   window.webContents.on('will-navigate',navigation);window.webContents.on('will-redirect',navigation);
+  // Mail pages render in sandboxed frames; any link or refresh that tries to load inside them goes to the browser instead.
+  window.webContents.on('will-frame-navigate',event=>{if(event.isMainFrame||/^about:(srcdoc|blank)$/.test(event.url||''))return;event.preventDefault();external(event.url);});
   window.webContents.session.setPermissionRequestHandler((_wc,_permission,callback)=>callback(false));
   window.once('ready-to-show',()=>window.show());
   window.webContents.on('did-finish-load',()=>{mainReady=true;if(pendingAddAccount){pendingAddAccount=false;window.webContents.send('lettide:add-account-request');}});
