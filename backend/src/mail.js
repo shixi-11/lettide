@@ -15,7 +15,15 @@ export const messageSummary=m=>({...publicMessage(m),text:(m.text||'').slice(0,2
 export const publicMessage=(m)=>({id:m.id,accountId:m.accountId,subject:m.subject,from:m.from,to:m.to,date:m.date,text:m.text,unread:!!m.unread,starred:!!m.starred,...(m.bodyLoaded===false?{bodyLoaded:false}:{}),...(m.folder?{folder:m.folder}:{}),...(m.folderIds||m.folders?{folderIds:[...(m.folderIds||m.folders)]}:{}),...(m.replyTo?{replyTo:m.replyTo}:{}),attachments:(m.attachments||[]).map(({id,filename,size})=>({id,filename,size}))});
 export async function testImap(account){const d=defaults(account),c=new ImapFlow({host:d.imap.host,port:d.imap.port,secure:true,auth:{user:account.email,pass:account.password},logger:false,connectionTimeout:10000,socketTimeout:15000,authTimeout:10000});await c.connect();await c.logout();}
 export async function testSmtp(account){const d=defaults(account),t=nodemailer.createTransport({host:d.smtp.host,port:d.smtp.port,secure:d.smtp.secure,auth:{user:account.email,pass:account.password},connectionTimeout:10000,socketTimeout:15000});await t.verify();t.close();}
-export const htmlBodyToText=(plain,html)=>plain?.trim()?plain:convertHtmlToText(html||'',{wordwrap:false});
+// Senders' text/plain alternatives are often machine-made (lost line breaks, hidden preheaders, raw link lists),
+// so read the HTML the recipient actually sees. Plain text wins when the HTML is only a shell (an image, a "view online" link).
+const bodySelectors=[...['head','style','script','title','img','[hidden]','[data-lettide-hidden]'].map(selector=>({selector,format:'skip'})),{selector:'a',options:{ignoreHref:true}},...['h1','h2','h3','h4','h5','h6'].map(selector=>({selector,options:{uppercase:false}})),...['tr','td','th'].map(selector=>({selector,format:'block',options:{leadingLineBreaks:1,trailingLineBreaks:1}}))];
+// The last declaration of a property wins, as in CSS. Only opening tags are touched, never visible text.
+const hiddenByStyle=css=>{const last={};for(const rule of css.split(';')){const at=rule.indexOf(':');if(at>0)last[rule.slice(0,at).trim().toLowerCase()]=rule.slice(at+1).replace(/!important/i,'').trim().toLowerCase();}return last.display==='none'||last.visibility==='hidden'||last['mso-hide']==='all';};
+const markHidden=html=>html.replace(/<([a-z][a-z0-9]*)(\s[^>]*)>/gi,(tag,name,attrs)=>{const style=attrs.match(/\sstyle\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/i);return style&&hiddenByStyle(style[1]??style[2]??style[3])?`<${name} data-lettide-hidden${attrs}>`:tag;});
+const visibleChars=text=>text.replace(/\[?https?:\/\/\S+\]?/g,'').replace(/\s+/g,'').length;
+export const BODY_TEXT_FORMAT=2;
+export const htmlBodyToText=(plain,html)=>{const fallback=plain?.trim()?plain:'',text=typeof html==='string'&&html.trim()?convertHtmlToText(markHidden(html),{wordwrap:false,selectors:bodySelectors}).replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim():'';return text&&visibleChars(text)*2>=visibleChars(fallback)?text:fallback||text;};
 export const providerDate=internalDate=>new Date(Number(internalDate)||Date.now()).toISOString();
 export async function composeGmailRaw(options){return new Promise((resolve,reject)=>new MailComposer(options).compile().build((error,message)=>error?reject(error):resolve(message.toString('base64url'))));}
 function defaults(a){
@@ -75,19 +83,19 @@ async function imapFetch(a,folder,query,limit=100,deps={}){
    for await (const msg of client.fetch(`${start}:${total}`,{uid:true,flags:true,envelope:true,source:true,bodyStructure:true})) {
      const p=await simpleParser(msg.source); const subject=p.subject||''; if(query&&!subject.toLowerCase().includes(query.toLowerCase())&&!p.text?.toLowerCase().includes(query.toLowerCase())) continue;
      const id=`${a.id}:imap:${box}:${msg.uid}`; const attachments=(p.attachments||[]).map((x,i)=>({id:`${id}:att:${i}`,filename:x.filename||'attachment',size:x.size,content:x.content.toString('base64')}));
-     out.push({id,accountId:a.id,providerRef:{type:'imap',folder:box,uid:msg.uid,uidValidity,rfcMessageId:p.messageId||null,references:p.references||[]},subject,from:address(p.from?.value?.[0]),to:(p.to?.value||[]).map(address),...(p.replyTo?.value?.length?{replyTo:p.replyTo.value.map(address)}:{}),date:(p.date||msg.envelope?.date||new Date()).toISOString(),text:htmlBodyToText(p.text,typeof p.html==='string'?p.html:''),unread:!msg.flags.has('\\Seen'),starred:msg.flags.has('\\Flagged'),attachments});
+     out.push({id,accountId:a.id,providerRef:{type:'imap',folder:box,uid:msg.uid,uidValidity,rfcMessageId:p.messageId||null,references:p.references||[]},subject,from:address(p.from?.value?.[0]),to:(p.to?.value||[]).map(address),...(p.replyTo?.value?.length?{replyTo:p.replyTo.value.map(address)}:{}),date:(p.date||msg.envelope?.date||new Date()).toISOString(),textFormat:BODY_TEXT_FORMAT,text:htmlBodyToText(p.text,typeof p.html==='string'?p.html:''),unread:!msg.flags.has('\\Seen'),starred:msg.flags.has('\\Flagged'),attachments});
    }
  } finally {lock.release();} } finally {await client.logout().catch(()=>{});} return out;
 }
 export async function loadMessageBody(state,message,deps={}){
- if(message.bodyLoaded!==false)return message;
+ if(message.bodyLoaded!==false&&!deps.refreshText)return message;
  const account=state.accounts.find(a=>a.id===message.accountId);if(!account)throw new Error('Account unavailable');
  if(message.providerRef?.type==='gmail'){const m=await googleRequest(account,state.settings,`/messages/${message.providerRef.id}?format=full`,{},deps);const content=await gmailContent(account,m,state.settings,deps);Object.assign(message,content);return message;}
  if(message.providerRef?.type==='graph'){
   await refreshToken(account,state.settings,'microsoft',deps.fetchImpl||fetch);
   const id=encodeURIComponent(message.providerRef.id),m=await graphRequest(account,'/me/messages/'+id+'?$select=body,hasAttachments',{},deps);
-  const attachments=m.hasAttachments?(await graphRequest(account,'/me/messages/'+id+'/attachments?$select=id,name,size',{},deps)).value||[]:[];
-  Object.assign(message,{text:htmlBodyToText(m.body?.contentType==='text'?m.body.content:'',m.body?.contentType==='html'?m.body.content:''),bodyLoaded:true,attachments:attachments.map(a=>({id:message.id+':att:'+a.id,filename:a.name||'attachment',size:a.size||0,remotePart:a.id}))});return message;
+  const attachments=m.hasAttachments&&!deps.refreshText?(await graphRequest(account,'/me/messages/'+id+'/attachments?$select=id,name,size',{},deps)).value||[]:[];
+  Object.assign(message,{textFormat:BODY_TEXT_FORMAT,text:htmlBodyToText(m.body?.contentType==='text'?m.body.content:'',m.body?.contentType==='html'?m.body.content:''),bodyLoaded:true,attachments:attachments.map(a=>({id:message.id+':att:'+a.id,filename:a.name||'attachment',size:a.size||0,remotePart:a.id}))});return message;
  }
  if(message.providerRef?.type!=='imap')return message;
  const client=await pooledImapClient(account,deps);await client.connect();try{const lock=await client.getMailboxLock(message.providerRef.folder);try{
@@ -96,13 +104,13 @@ export async function loadMessageBody(state,message,deps={}){
    const row=message.providerRef.bodyStructure?{bodyStructure:message.providerRef.bodyStructure}:await client.fetchOne(message.providerRef.uid,{bodyStructure:true},{uid:true});
    if(!row)throw new Error('Message no longer available');
    if(row.bodyStructure){
-    const parts=describeParts(row.bodyStructure,message.id),chosen=parts.text.find(p=>p.type==='text/plain')||parts.text.find(p=>p.type==='text/html');
-    let text='';if(chosen){const max=2*1024*1024;if(chosen.size>max)throw new Error('Email body is too large to display');const download=await client.download(message.providerRef.uid,chosen.part,{uid:true,maxBytes:max});const bytes=await readDownload(download,max);text=bytes.toString('utf8');if(chosen.type==='text/html')text=htmlBodyToText('',text);}
-    Object.assign(message,{text,attachments:parts.attachments,bodyLoaded:true});return message;
+    const parts=describeParts(row.bodyStructure,message.id),max=2*1024*1024,read=async part=>{if(!part)return '';if(part.size>max)throw new Error('Email body is too large to display');const download=await client.download(message.providerRef.uid,part.part,{uid:true,maxBytes:max});return (await readDownload(download,max)).toString('utf8');};
+    const html=await read(parts.text.find(p=>p.type==='text/html')),plain=await read(parts.text.find(p=>p.type==='text/plain'));
+    Object.assign(message,{textFormat:BODY_TEXT_FORMAT,text:htmlBodyToText(plain,html),...(deps.refreshText?{}:{attachments:parts.attachments,bodyLoaded:true})});return message;
    }
   }
   const row=await client.fetchOne(message.providerRef.uid,{source:true},{uid:true});if(!row?.source)throw new Error('Message no longer available');
-  const p=await simpleParser(row.source);Object.assign(message,{subject:p.subject||message.subject,from:address(p.from?.value?.[0]),to:(p.to?.value||[]).map(address),...(p.replyTo?.value?.length?{replyTo:p.replyTo.value.map(address)}:{}),text:htmlBodyToText(p.text,typeof p.html==='string'?p.html:''),attachments:(p.attachments||[]).map((x,i)=>({id:`${message.id}:att:${i}`,filename:x.filename||'attachment',size:x.size,content:x.content.toString('base64')})),bodyLoaded:true});
+  const p=await simpleParser(row.source);Object.assign(message,{subject:p.subject||message.subject,from:address(p.from?.value?.[0]),to:(p.to?.value||[]).map(address),...(p.replyTo?.value?.length?{replyTo:p.replyTo.value.map(address)}:{}),textFormat:BODY_TEXT_FORMAT,text:htmlBodyToText(p.text,typeof p.html==='string'?p.html:''),attachments:(p.attachments||[]).map((x,i)=>({id:`${message.id}:att:${i}`,filename:x.filename||'attachment',size:x.size,content:x.content.toString('base64')})),bodyLoaded:true});
   Object.assign(message.providerRef,{rfcMessageId:p.messageId||null,references:p.references||[]});return message;
  }finally{lock.release()}}finally{await client.logout().catch(()=>{})}
 }
@@ -133,7 +141,7 @@ async function gmailContent(a,m,settings,deps={}){
  function walk(p){if(p.parts)p.parts.forEach(walk);if(p.body?.data)parts.push({mime:p.mimeType,data:decode64(p.body.data)});if(p.body?.attachmentId)attachmentParts.push({id:p.body.attachmentId,filename:p.filename||'attachment',size:p.body.size||0});}walk(payload);
  const pick=t=>parts.find(p=>p.mime===t)?.data||'',id=`${a.id}:gmail:${m.id}`;
  const attachments=attachmentParts.map(part=>({id:`${id}:att:${part.id}`,filename:part.filename,size:part.size,remotePart:part.id}));
- return {text:htmlBodyToText(pick('text/plain'),pick('text/html')),attachments:attachments.filter(Boolean),bodyLoaded:true};
+ return {textFormat:BODY_TEXT_FORMAT,text:htmlBodyToText(pick('text/plain'),pick('text/html')),attachments:attachments.filter(Boolean),bodyLoaded:true};
 }
 async function gmailFetch(a,folder,query,limit,settings,deps={}){
  const cached=new Map((deps.cachedMessages||[]).filter(m=>m.accountId===a.id).map(m=>[m.id,m]));

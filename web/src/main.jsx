@@ -102,7 +102,7 @@ function App() {
   let active=true,timer,polling=false;
   const poll=async()=>{if(polling||!active)return;polling=true;
    try{const state=await api('/status');if(!active)return;setStatus(state);
-    if(serverRevision.current!==state.revision){serverRevision.current=state.revision;await Promise.all([refreshMeta(),refreshMessages(),api('/folders').then(rows=>{if(active)setRemoteFolders(rows)})]);}
+    if(serverRevision.current!==state.revision){serverRevision.current=state.revision;const open=latestSelection.current;await Promise.all([refreshMeta(),refreshMessages(),api('/folders').then(rows=>{if(active)setRemoteFolders(rows)}),open&&api('/messages/'+encodeURIComponent(open)).then(full=>{if(active&&latestSelection.current===open)setSelected(prev=>prev?.id===full.id&&prev.text!==full.text?{...prev,...full}:prev)}).catch(()=>{})]);}
    }catch{}finally{polling=false;if(active)timer=setTimeout(poll,document.hidden?15000:3000);}
   };
   const wake=()=>{if(!document.hidden){clearTimeout(timer);void poll()}};

@@ -86,7 +86,7 @@ test('parallel first discovery of the same id unions folder memberships',async()
 
 test('slow body loading releases the store queue and preserves concurrent flags and moves',async()=>{
  let startedResolve,releaseResolve;const started=new Promise(r=>startedResolve=r),blocked=new Promise(r=>releaseResolve=r);
- const f=await fixture(async state=>state.messages,async(_state,message,patch)=>{Object.assign(message,patch);if(patch.folder){message.folder=patch.folder;message.folderIds=[patch.folder];message.folders=message.folderIds;}},undefined,async(_state,message)=>{startedResolve();await blocked;message.text='loaded fictional body';message.attachments=[{id:'m:attachment',filename:'notes.txt',size:12}];message.bodyLoaded=true;});
+ const f=await fixture(async state=>state.messages,async(_state,message,patch)=>{Object.assign(message,patch);if(patch.folder){message.folder=patch.folder;message.folderIds=[patch.folder];message.folders=message.folderIds;}},undefined,async(_state,message)=>{startedResolve();await blocked;message.text='loaded fictional body';message.attachments=[{id:'m:attachment',filename:'notes.txt',size:12}];message.textFormat=2;message.bodyLoaded=true;});
  try{
   await f.store.mutate(s=>{s.messages[0].bodyLoaded=false;s.messages[0].text='';});
   const body=request(f,'/messages/m',undefined,'GET');await started;
@@ -112,7 +112,7 @@ test('service stop waits for background polling network work before closing the 
 
 test('small visible IMAP bodies prefetch without blocking the list, coalesce with opening, and skip large attachments',async()=>{
  let release,started,calls=0;const gate=new Promise(r=>release=r),ready=new Promise(r=>started=r);
- const f=await fixture(async()=>[],async(_s,m,p)=>Object.assign(m,p),async()=>[],async(_s,m,deps)=>{calls++;assert.equal(deps.priority,'background');started();await gate;m.text='Fictional prefetched body';m.bodyLoaded=true;});
+ const f=await fixture(async()=>[],async(_s,m,p)=>Object.assign(m,p),async()=>[],async(_s,m,deps)=>{calls++;assert.equal(deps.priority,'background');started();await gate;m.text='Fictional prefetched body';m.textFormat=2;m.bodyLoaded=true;});
  try{
   await f.store.mutate(s=>{Object.assign(s.messages[0],{bodyLoaded:false,size:1024,providerRef:{type:'imap'}});s.messages.push({...s.messages[0],id:'large',size:1024*1024});});
   const list=await request(f,'/messages',undefined,'GET');assert.equal(list.status,200);await ready;
