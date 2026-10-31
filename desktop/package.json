@@ -30,7 +30,8 @@
       "assets/icon.png",
       "assets/icon.svg",
       "build-locale.json",
-      "updater.cjs"
+      "updater.cjs",
+      "ai-connections.cjs"
     ],
     "extraResources": [
       {

@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('lettide',{
  initialLanguage:ipcRenderer.sendSync('lettide:locale').initialLanguage,
  systemLanguage:ipcRenderer.sendSync('lettide:locale').systemLanguage,
  configureAI:()=>ipcRenderer.invoke('lettide:configure-ai'),
+ aiConnectionStatus:()=>ipcRenderer.invoke('lettide:ai-status'),
  openExternal:url=>ipcRenderer.invoke('lettide:open-external',url),
  setLanguage:language=>ipcRenderer.invoke('lettide:language',language),
  openAccountManager:()=>ipcRenderer.invoke('lettide:open-account-manager'),
