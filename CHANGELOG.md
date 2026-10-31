@@ -1,5 +1,22 @@
 # 更新记录 / Changelog
 
+## 0.5.5
+
+### English
+
+- New mail alerts: while Lettide is hidden or in the background, new inbox mail shows a system notification with the sender and subject; click it to open that message. The unread count appears on the taskbar icon and in the tray. Turn alerts off in Settings or from the tray menu.
+- The Original view now shows messages as their sender designed them, with buttons, tables and layout intact. Links open in your browser. Remote images stay blocked until you choose "Show images" for that message, so senders cannot tell you opened it. In dark mode the message sits on a light card.
+- Search older mail on the server: when a search does not find what you need in recent mail, choose "Search on the mail server" below the results to look further back. AI assistants can request the same search.
+- Mail from earlier years shows its year in the list.
+- A draft moved to Trash in Gmail no longer also appears in Drafts.
+
+### 中文
+
+- 新邮件提醒：叠信在后台或托盘时，收件箱来新邮件会弹系统通知，显示发件人和主题，点一下直接打开那封邮件；未读数显示在任务栏图标和托盘上。可在设置或托盘菜单里关掉提醒。
+- 「原文」按邮件原本的网页样子显示，按钮、表格和排版都在，点链接用浏览器打开。远程图片默认不加载，点「显示图片」才对这封放开，发件人无法据此知道你看过；夜间模式下邮件放在浅色卡片上。
+- 在邮箱服务器上搜索旧邮件：最近的邮件里没搜到时，点结果下方的「在邮箱服务器上搜索」往前找；AI 助手也能请求同样的搜索。
+- 往年的邮件在列表里显示年份。
+- Gmail 里移进「已删除」的草稿，不再同时留在草稿箱。
 ## 0.5.4
 
 ### English
