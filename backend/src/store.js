@@ -32,7 +32,7 @@ const exists=file=>fs.access(file).then(()=>true,()=>false);
 const sha256=data=>createHash('sha256').update(data).digest('hex');
 const attachmentName=/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const intermediateName=/^\d+\.[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.(tmp|bak|init|migrate)$/;
-const hasInlineAttachments=state=>(state?.messages||[]).some(m=>(m.attachments||[]).some(a=>typeof a.content==='string'));
+const hasInlineAttachments=state=>(state?.messages||[]).some(m=>typeof m.html==='string'||(m.attachments||[]).some(a=>typeof a.content==='string'));
 export class Store {
   constructor({file, legacyFile, codec=null,readOnly=false}={}) {
     const usesDefault=!file;
@@ -96,27 +96,45 @@ export class Store {
     if(sha256(data)!==attachment.sha256)throw new Error('Attachment content failed verification');
     return data;
   }
+  // The original HTML of each message is kept the same way, one encrypted file per message.
+  get htmlDir(){return path.join(path.dirname(this.file),'bodies');}
+  async readHtml(message){
+    if(typeof message?.html==='string')return message.html;
+    if(!message?.htmlBlob)return null;
+    if(!attachmentName.test(message.htmlBlob))throw new Error('Email page is unavailable');
+    const data=await this.decrypt(await fs.readFile(path.join(this.htmlDir,message.htmlBlob)));
+    if(sha256(data)!==message.htmlSha256)throw new Error('Email page failed verification');
+    return data.toString('utf8');
+  }
+  async writeBlob(dir,data,previous){
+    if(previous&&attachmentName.test(previous)&&await exists(path.join(dir,previous)))return previous;
+    await fs.mkdir(dir,{recursive:true,mode:0o700});
+    const blob=randomUUID(),file=path.join(dir,blob),tmp=`${file}.${process.pid}.tmp`,h=await fs.open(tmp,'wx',0o600);
+    try{await h.writeFile(await this.encrypt(data));await h.sync();}finally{await h.close();}
+    await fs.rename(tmp,file);return blob;
+  }
   async externalizeAttachments(state){
-    const known=new Map();for(const m of this.state?.messages||[])for(const a of m.attachments||[])if(a.blob)known.set(a.id,a);
-    let dirReady=false;
-    for(const m of state.messages||[])for(const a of m.attachments||[]){
-      if(typeof a.content!=='string')continue;
-      const data=Buffer.from(a.content,'base64'),hash=sha256(data),previous=known.get(a.id);
-      if(previous?.sha256===hash&&await exists(path.join(this.attachmentDir,previous.blob)))a.blob=previous.blob;
-      else{
-        if(!dirReady){await fs.mkdir(this.attachmentDir,{recursive:true,mode:0o700});dirReady=true;}
-        const blob=randomUUID(),file=path.join(this.attachmentDir,blob),tmp=`${file}.${process.pid}.tmp`,h=await fs.open(tmp,'wx',0o600);
-        try{await h.writeFile(await this.encrypt(data));await h.sync();}finally{await h.close();}
-        await fs.rename(tmp,file);a.blob=blob;
+    const known=new Map(),knownHtml=new Map();for(const m of this.state?.messages||[]){if(m.htmlBlob)knownHtml.set(m.id,m);for(const a of m.attachments||[])if(a.blob)known.set(a.id,a);}
+    for(const m of state.messages||[]){
+      for(const a of m.attachments||[]){
+        if(typeof a.content!=='string')continue;
+        const data=Buffer.from(a.content,'base64'),hash=sha256(data),previous=known.get(a.id);
+        a.blob=await this.writeBlob(this.attachmentDir,data,previous?.sha256===hash?previous.blob:null);a.sha256=hash;delete a.content;
       }
-      a.sha256=hash;delete a.content;
+      if(m.html===null||m.html===''){delete m.html;delete m.htmlBlob;delete m.htmlSha256;}
+      else if(typeof m.html==='string'){
+        const data=Buffer.from(m.html,'utf8'),hash=sha256(data),previous=knownHtml.get(m.id);
+        m.htmlBlob=await this.writeBlob(this.htmlDir,data,previous?.htmlSha256===hash?previous.htmlBlob:null);m.htmlSha256=hash;delete m.html;
+      }
     }
   }
   // Only the writer runs this, before any transaction, so every unreferenced file is an orphan from removed mail or an interrupted save.
   async collectAttachmentFiles(){
-    let names;try{names=await fs.readdir(this.attachmentDir);}catch{return;}
-    const used=new Set();for(const m of this.state.messages||[])for(const a of m.attachments||[])if(a.blob)used.add(a.blob);
-    for(const name of names)if(!used.has(name))await fs.rm(path.join(this.attachmentDir,name),{force:true}).catch(()=>{});
+    const used=new Set();for(const m of this.state.messages||[]){if(m.htmlBlob)used.add(m.htmlBlob);for(const a of m.attachments||[])if(a.blob)used.add(a.blob);}
+    for(const dir of [this.attachmentDir,this.htmlDir]){
+      let names;try{names=await fs.readdir(dir);}catch{continue;}
+      for(const name of names)if(!used.has(name))await fs.rm(path.join(dir,name),{force:true}).catch(()=>{});
+    }
   }
   async persist(state){if(this.readOnly)throw new Error('Read-only store');await this.externalizeAttachments(state);const encrypted=await this.encrypt(Buffer.from(JSON.stringify(state))),tmp=`${this.file}.${process.pid}.${randomUUID()}.tmp`,backup=`${this.file}.${process.pid}.${randomUUID()}.bak`;const h=await fs.open(tmp,'wx',0o600);try{await h.writeFile(encrypted);await h.sync();}finally{await h.close();}try{try{await fs.rename(this.file,backup);await fs.rename(tmp,this.file);await fs.rm(backup,{force:true});}catch(e){try{await fs.access(backup);await fs.rename(backup,this.file);}catch{}throw e;}}catch(e){await fs.rm(tmp,{force:true});throw e;}}
   async save(){await this.persist(this.state);}

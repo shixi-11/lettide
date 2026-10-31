@@ -24,6 +24,13 @@ const markHidden=html=>html.replace(/<([a-z][a-z0-9]*)(\s[^>]*)>/gi,(tag,name,at
 const visibleChars=text=>text.replace(/\[?https?:\/\/\S+\]?/g,'').replace(/\s+/g,'').length;
 export const BODY_TEXT_FORMAT=2;
 export const htmlBodyToText=(plain,html)=>{const fallback=plain?.trim()?plain:'',text=typeof html==='string'&&html.trim()?convertHtmlToText(markHidden(html),{wordwrap:false,selectors:bodySelectors}).replace(/[ \t]+\n/g,'\n').replace(/\n{3,}/g,'\n\n').trim():'';return text&&visibleChars(text)*2>=visibleChars(fallback)?text:fallback||text;};
+// The original HTML is kept beside the text for the page view; HTML_BODY_FORMAT marks mail whose HTML was looked for.
+export const HTML_BODY_FORMAT=1;
+const bodyHtml=html=>typeof html==='string'&&html.trim()?html:null;
+// A page is only a shell when its own text lost to the plain alternative above.
+export const htmlIsShell=(html,text)=>visibleChars(htmlBodyToText('',html))*2<visibleChars(text||'');
+const contentId=value=>typeof value==='string'&&value.trim()?{cid:value.trim().replace(/^<|>$/g,'')}:{};
+const keepHtml=old=>old&&old.bodyLoaded!==false&&old.htmlFormat?{htmlFormat:old.htmlFormat,...(old.htmlBlob?{htmlBlob:old.htmlBlob,htmlSha256:old.htmlSha256}:{})}:{};
 export const providerDate=internalDate=>new Date(Number(internalDate)||Date.now()).toISOString();
 export async function composeGmailRaw(options){return new Promise((resolve,reject)=>new MailComposer(options).compile().build((error,message)=>error?reject(error):resolve(message.toString('base64url'))));}
 function defaults(a){
@@ -83,8 +90,8 @@ async function imapFetch(a,folder,query,limit=100,deps={}){
    }
    for await (const msg of client.fetch(`${start}:${total}`,{uid:true,flags:true,envelope:true,source:true,bodyStructure:true})) {
      const p=await simpleParser(msg.source); const subject=p.subject||''; if(query&&!subject.toLowerCase().includes(query.toLowerCase())&&!p.text?.toLowerCase().includes(query.toLowerCase())) continue;
-     const id=`${a.id}:imap:${box}:${msg.uid}`; const attachments=(p.attachments||[]).map((x,i)=>({id:`${id}:att:${i}`,filename:x.filename||'attachment',size:x.size,content:x.content.toString('base64')}));
-     out.push({id,accountId:a.id,providerRef:{type:'imap',folder:box,uid:msg.uid,uidValidity,rfcMessageId:p.messageId||null,references:p.references||[]},subject,from:address(p.from?.value?.[0]),to:(p.to?.value||[]).map(address),...(p.replyTo?.value?.length?{replyTo:p.replyTo.value.map(address)}:{}),date:(p.date||msg.envelope?.date||new Date()).toISOString(),textFormat:BODY_TEXT_FORMAT,text:htmlBodyToText(p.text,typeof p.html==='string'?p.html:''),unread:!msg.flags.has('\\Seen'),starred:msg.flags.has('\\Flagged'),attachments});
+     const id=`${a.id}:imap:${box}:${msg.uid}`; const attachments=(p.attachments||[]).map((x,i)=>({id:`${id}:att:${i}`,filename:x.filename||'attachment',size:x.size,...contentId(x.cid),content:x.content.toString('base64')}));
+     out.push({id,accountId:a.id,providerRef:{type:'imap',folder:box,uid:msg.uid,uidValidity,rfcMessageId:p.messageId||null,references:p.references||[]},subject,from:address(p.from?.value?.[0]),to:(p.to?.value||[]).map(address),...(p.replyTo?.value?.length?{replyTo:p.replyTo.value.map(address)}:{}),date:(p.date||msg.envelope?.date||new Date()).toISOString(),textFormat:BODY_TEXT_FORMAT,text:htmlBodyToText(p.text,typeof p.html==='string'?p.html:''),html:bodyHtml(p.html),htmlFormat:HTML_BODY_FORMAT,unread:!msg.flags.has('\\Seen'),starred:msg.flags.has('\\Flagged'),attachments});
    }
  } finally {lock.release();} } finally {await client.logout().catch(()=>{});} return out;
 }
@@ -112,8 +119,8 @@ export async function loadMessageBody(state,message,deps={}){
  if(message.providerRef?.type==='graph'){
   await refreshToken(account,state.settings,'microsoft',deps.fetchImpl||fetch);
   const id=encodeURIComponent(message.providerRef.id),m=await graphRequest(account,'/me/messages/'+id+'?$select=body,hasAttachments',{},deps);
-  const attachments=m.hasAttachments&&!deps.refreshText?(await graphRequest(account,'/me/messages/'+id+'/attachments?$select=id,name,size',{},deps)).value||[]:[];
-  Object.assign(message,{textFormat:BODY_TEXT_FORMAT,text:htmlBodyToText(m.body?.contentType==='text'?m.body.content:'',m.body?.contentType==='html'?m.body.content:''),bodyLoaded:true,attachments:attachments.map(a=>({id:message.id+':att:'+a.id,filename:a.name||'attachment',size:a.size||0,remotePart:a.id}))});return message;
+  const attachments=m.hasAttachments?(await graphRequest(account,'/me/messages/'+id+'/attachments?$select=id,name,size,contentId',{},deps)).value||[]:[];
+  Object.assign(message,{textFormat:BODY_TEXT_FORMAT,text:htmlBodyToText(m.body?.contentType==='text'?m.body.content:'',m.body?.contentType==='html'?m.body.content:''),html:bodyHtml(m.body?.contentType==='html'?m.body.content:''),htmlFormat:HTML_BODY_FORMAT,bodyLoaded:true,attachments:attachments.map(a=>({id:message.id+':att:'+a.id,filename:a.name||'attachment',size:a.size||0,...contentId(a.contentId),remotePart:a.id}))});return message;
  }
  if(message.providerRef?.type!=='imap')return message;
  const client=await pooledImapClient(account,deps);await client.connect();try{const lock=await client.getMailboxLock(message.providerRef.folder);try{
@@ -124,11 +131,12 @@ export async function loadMessageBody(state,message,deps={}){
    if(row.bodyStructure){
     const parts=describeParts(row.bodyStructure,message.id),max=2*1024*1024,read=async part=>{if(!part)return '';if(part.size>max)throw new Error('Email body is too large to display');const download=await client.download(message.providerRef.uid,part.part,{uid:true,maxBytes:max});return (await readDownload(download,max)).toString('utf8');};
     const html=await read(parts.text.find(p=>p.type==='text/html')),plain=await read(parts.text.find(p=>p.type==='text/plain'));
-    Object.assign(message,{textFormat:BODY_TEXT_FORMAT,text:htmlBodyToText(plain,html),...(deps.refreshText?{}:{attachments:parts.attachments,bodyLoaded:true})});return message;
+    if(deps.refreshText)for(const part of parts.attachments){const kept=part.cid&&(message.attachments||[]).find(x=>x.id===part.id);if(kept&&!kept.cid)kept.cid=part.cid;}
+    Object.assign(message,{textFormat:BODY_TEXT_FORMAT,text:htmlBodyToText(plain,html),html:bodyHtml(html),htmlFormat:HTML_BODY_FORMAT,...(deps.refreshText?{}:{attachments:parts.attachments,bodyLoaded:true})});return message;
    }
   }
   const row=await client.fetchOne(message.providerRef.uid,{source:true},{uid:true});if(!row?.source)throw new Error('Message no longer available');
-  const p=await simpleParser(row.source);Object.assign(message,{subject:p.subject||message.subject,from:address(p.from?.value?.[0]),to:(p.to?.value||[]).map(address),...(p.replyTo?.value?.length?{replyTo:p.replyTo.value.map(address)}:{}),textFormat:BODY_TEXT_FORMAT,text:htmlBodyToText(p.text,typeof p.html==='string'?p.html:''),attachments:(p.attachments||[]).map((x,i)=>({id:`${message.id}:att:${i}`,filename:x.filename||'attachment',size:x.size,content:x.content.toString('base64')})),bodyLoaded:true});
+  const p=await simpleParser(row.source);Object.assign(message,{subject:p.subject||message.subject,from:address(p.from?.value?.[0]),to:(p.to?.value||[]).map(address),...(p.replyTo?.value?.length?{replyTo:p.replyTo.value.map(address)}:{}),textFormat:BODY_TEXT_FORMAT,text:htmlBodyToText(p.text,typeof p.html==='string'?p.html:''),html:bodyHtml(p.html),htmlFormat:HTML_BODY_FORMAT,attachments:(p.attachments||[]).map((x,i)=>({id:`${message.id}:att:${i}`,filename:x.filename||'attachment',size:x.size,...contentId(x.cid),content:x.content.toString('base64')})),bodyLoaded:true});
   Object.assign(message.providerRef,{rfcMessageId:p.messageId||null,references:p.references||[]});return message;
  }finally{lock.release()}}finally{await client.logout().catch(()=>{})}
 }
@@ -156,10 +164,10 @@ async function mapConcurrent(items,limit,fn){
 }
 async function gmailContent(a,m,settings,deps={}){
  const payload=m.payload||{},parts=[],attachmentParts=[];
- function walk(p){if(p.parts)p.parts.forEach(walk);if(p.body?.data)parts.push({mime:p.mimeType,data:decode64(p.body.data)});if(p.body?.attachmentId)attachmentParts.push({id:p.body.attachmentId,filename:p.filename||'attachment',size:p.body.size||0});}walk(payload);
+ function walk(p){if(p.parts)p.parts.forEach(walk);if(p.body?.data)parts.push({mime:p.mimeType,data:decode64(p.body.data)});if(p.body?.attachmentId)attachmentParts.push({id:p.body.attachmentId,filename:p.filename||'attachment',size:p.body.size||0,...contentId((p.headers||[]).find(x=>x.name.toLowerCase()==='content-id')?.value)});}walk(payload);
  const pick=t=>parts.find(p=>p.mime===t)?.data||'',id=`${a.id}:gmail:${m.id}`;
- const attachments=attachmentParts.map(part=>({id:`${id}:att:${part.id}`,filename:part.filename,size:part.size,remotePart:part.id}));
- return {textFormat:BODY_TEXT_FORMAT,text:htmlBodyToText(pick('text/plain'),pick('text/html')),attachments:attachments.filter(Boolean),bodyLoaded:true};
+ const attachments=attachmentParts.map(part=>({id:`${id}:att:${part.id}`,filename:part.filename,size:part.size,...(part.cid?{cid:part.cid}:{}),remotePart:part.id}));
+ return {textFormat:BODY_TEXT_FORMAT,text:htmlBodyToText(pick('text/plain'),pick('text/html')),html:bodyHtml(pick('text/html')),htmlFormat:HTML_BODY_FORMAT,attachments:attachments.filter(Boolean),bodyLoaded:true};
 }
 async function gmailFetch(a,folder,query,limit,settings,deps={}){
  const cached=new Map((deps.cachedMessages||[]).filter(m=>m.accountId===a.id).map(m=>[m.id,m]));
@@ -175,7 +183,7 @@ async function gmailFetch(a,folder,query,limit,settings,deps={}){
   const params=new URLSearchParams({format:deps.metadataOnly?'metadata':'full'});
   if(deps.metadataOnly)for(const header of ['From','To','Subject','Date','Reply-To','Message-ID','References'])params.append('metadataHeaders',header);
   let m;try{m=await googleRequest(a,settings,`/messages/${ref.id}?${params}`,{},deps)}catch(error){if(error.status===404){removed.add(ref.id);return null;}throw error;}const payload=m.payload||{},h=googleHeaders(payload,m.internalDate),id=`${a.id}:gmail:${m.id}`,old=cached.get(id);
-  const content=deps.metadataOnly?{text:old?.bodyLoaded!==false&&old?old.text||'':m.snippet||'',attachments:old?.attachments||[],bodyLoaded:!!old&&old.bodyLoaded!==false}:await gmailContent(a,m,settings,deps);
+  const content=deps.metadataOnly?{text:old?.bodyLoaded!==false&&old?old.text||'':m.snippet||'',attachments:old?.attachments||[],bodyLoaded:!!old&&old.bodyLoaded!==false,...keepHtml(old)}:await gmailContent(a,m,settings,deps);
   const msgId=(payload.headers||[]).find(x=>x.name.toLowerCase()==='message-id')?.value||null,refs=(payload.headers||[]).find(x=>x.name.toLowerCase()==='references')?.value||'';
   return {id,accountId:a.id,providerRef:{type:'gmail',id:m.id,labelIds:m.labelIds||[],threadId:m.threadId,rfcMessageId:msgId,references:refs},...h,...content,unread:(m.labelIds||[]).includes('UNREAD'),starred:(m.labelIds||[]).includes('STARRED')};
  });
@@ -189,7 +197,7 @@ async function graphFetch(a,folder,query,limit,settings,deps={}){
  // Graph rejects $orderby together with $search; search results already come newest first.
  const q=new URLSearchParams({$top:String(Math.min(limit,100)),...(query?{}:{$orderby:'receivedDateTime desc'}),$select:'id,internetMessageId,subject,from,toRecipients,replyTo,receivedDateTime,'+(deps.metadataOnly?'bodyPreview':'body')+',isRead,flag,hasAttachments'});if(query)q.set('$search',String.fromCharCode(34)+String(query).replace(/["\\]/g,' ').trim()+String.fromCharCode(34));
  const r=await graphRequest(a,'/me/mailFolders/'+encodeURIComponent(f)+'/messages?'+q,{},deps),cached=new Map((deps.cachedMessages||[]).map(m=>[m.id,m]));
- const rows=(r.value||[]).map(m=>{const id=a.id+':graph:'+m.id,old=cached.get(id);return {id,accountId:a.id,providerRef:{type:'graph',id:m.id,folder:f,rfcMessageId:m.internetMessageId||null},subject:m.subject||'',from:address(m.from?.emailAddress),to:(m.toRecipients||[]).map(x=>address(x.emailAddress)),...(m.replyTo?.length?{replyTo:m.replyTo.map(x=>address(x.emailAddress))}:{}),date:m.receivedDateTime,text:deps.metadataOnly?(old?.bodyLoaded!==false&&old?old.text||'':m.bodyPreview||''):htmlBodyToText(m.body?.contentType==='text'?m.body.content:'',m.body?.contentType==='html'?m.body.content:''),bodyLoaded:deps.metadataOnly?!!old&&old.bodyLoaded!==false:false,unread:!m.isRead,starred:m.flag?.flagStatus==='flagged',attachments:old?.attachments||[]};});rows.more=!!r['@odata.nextLink'];return rows;
+ const rows=(r.value||[]).map(m=>{const id=a.id+':graph:'+m.id,old=cached.get(id);return {id,accountId:a.id,providerRef:{type:'graph',id:m.id,folder:f,rfcMessageId:m.internetMessageId||null},subject:m.subject||'',from:address(m.from?.emailAddress),to:(m.toRecipients||[]).map(x=>address(x.emailAddress)),...(m.replyTo?.length?{replyTo:m.replyTo.map(x=>address(x.emailAddress))}:{}),date:m.receivedDateTime,text:deps.metadataOnly?(old?.bodyLoaded!==false&&old?old.text||'':m.bodyPreview||''):htmlBodyToText(m.body?.contentType==='text'?m.body.content:'',m.body?.contentType==='html'?m.body.content:''),bodyLoaded:deps.metadataOnly?!!old&&old.bodyLoaded!==false:false,...(deps.metadataOnly?keepHtml(old):{}),unread:!m.isRead,starred:m.flag?.flagStatus==='flagged',attachments:old?.attachments||[]};});rows.more=!!r['@odata.nextLink'];return rows;
 }
 const gmailMemberships=(m,labelFolders,target)=>{const labels=m.providerRef.labelIds||[],memberships=labels.map(id=>labelFolders.get(id)).filter(Boolean);if(!labels.some(id=>['INBOX','SENT','DRAFT','TRASH','SPAM'].includes(id)))memberships.push('archive');if(target.role==='custom'||target.role==='archive')memberships.push(target.folderKey);return memberships;};
 // Server search results sit outside the synced window; this keeps them through later syncs unless the provider reports them gone.
