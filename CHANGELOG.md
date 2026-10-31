@@ -1,5 +1,17 @@
 # 更新记录 / Changelog
 
+## 0.5.6
+
+### English
+
+- Ordinary HTML mail now reads in Lettide's own colors and font, in both light and dark mode, instead of on a white card. Newsletters and other mail with their own designed colors keep their design.
+- A Gmail draft you deleted earlier no longer stays in Drafts after you update.
+
+### 中文
+
+- 普通网页邮件改用叠信自己的配色和字体显示，日间夜间都一致，不再放在白色卡片上；自带配色设计的营销邮件仍保留原样。
+- 以前删掉的 Gmail 草稿，更新后不会再留在草稿箱。
+
 ## 0.5.5
 
 ### English
