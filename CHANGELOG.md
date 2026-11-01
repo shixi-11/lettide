@@ -1,5 +1,15 @@
 # 更新记录 / Changelog
 
+## 0.5.7
+
+### English
+
+- The desktop sidebar no longer repeats the Lettide icon and name already shown in the window title, leaving more room for your mail.
+
+### 中文
+
+- 桌面版侧栏不再重复显示窗口标题栏里已有的叠信图标和名字，给邮件留出更多空间。
+
 ## 0.5.6
 
 ### English
