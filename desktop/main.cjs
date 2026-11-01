@@ -13,7 +13,9 @@ let mailWatch={timer:null,seen:null,unread:0,notes:new Set()},desktopPrefs={newM
 app.setName(buildLocale==='zh-CN'?'叠信':'Lettide');
 app.setPath('userData',path.join(app.getPath('appData'),'Lettide'));
 if(!app.isPackaged&&process.env.LETTIDE_TEST_USER_DATA)app.setPath('userData',process.env.LETTIDE_TEST_USER_DATA);
-app.setAppUserModelId('com.lettide.desktop');
+// A development or test run gets its own identity: sharing the installed one let Windows bind
+// the pinned Start tile to a generated "Electron" shortcut.
+app.setAppUserModelId(app.isPackaged?'com.lettide.desktop':'com.lettide.desktop.dev');
 function external(url){try{const u=new URL(url);if(u.protocol==='https:'||u.protocol==='http:')void shell.openExternal(u.href);}catch{}}
 function updateTrayMenu(){
   if(!tray)return;
