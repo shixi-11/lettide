@@ -19,12 +19,12 @@ Lettide is an open-source desktop email client for Windows and macOS. Bring mult
 
 ## Download
 
-Current preview: **0.5.8**. [All downloads](https://github.com/shixi-11/lettide/releases/tag/v0.5.8)
+Current preview: **0.5.9**. [All downloads](https://github.com/shixi-11/lettide/releases/tag/v0.5.9)
 
 | Platform and package | English “Lettide” | 简体中文「叠信」 |
 | --- | --- | --- |
-| Windows 10 / 11 · x64 | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.5.8/Lettide-0.5.8-win-x64-en.exe) | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.5.8/Lettide-0.5.8-win-x64-zh-CN.exe) |
-| macOS 13+ · Apple Silicon + Intel | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.8/Lettide-0.5.8-mac-universal-en.dmg) | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.8/Lettide-0.5.8-mac-universal-zh-CN.dmg) |
+| Windows 10 / 11 · x64 | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.5.9/Lettide-0.5.9-win-x64-en.exe) | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.5.9/Lettide-0.5.9-win-x64-zh-CN.exe) |
+| macOS 13+ · Apple Silicon + Intel | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.9/Lettide-0.5.9-mac-universal-en.dmg) | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.9/Lettide-0.5.9-mac-universal-zh-CN.dmg) |
 
 Run the Windows EXE, or open the Mac DMG and drag the app into Applications. Node.js is included. English downloads use Lettide; Chinese downloads use 叠信. Change the interface language in Settings. Linux installers are deferred.
 
@@ -70,7 +70,7 @@ The repository includes application code and build scripts. Each release links t
 
 ## License
 
-Starting with **0.5.8**, Lettide is open-source software under the [GNU Affero General Public License v3.0 only (AGPL-3.0-only)](LICENSE). Official installers are free for personal and business use, including commercial work. When distributing a covered modified version, provide its corresponding source under the AGPLv3 terms. If users interact with a modified version over a network, offer those users access to its corresponding source as required by the license. Charging for distribution is permitted; distributing a covered derivative as proprietary software is not.
+Lettide is open-source software under the [GNU Affero General Public License v3.0 only (AGPL-3.0-only)](LICENSE). Official installers are free for personal and business use, including commercial work. When distributing a covered modified version, provide its corresponding source under the AGPLv3 terms. If users interact with a modified version over a network, offer those users access to its corresponding source as required by the license. Charging for distribution is permitted; distributing a covered derivative as proprietary software is not.
 
 The software is provided without warranty. Using Lettide does not require publishing your emails, credentials or independent business materials. See [copyright and third-party notices](NOTICE). Third-party dependencies and [optional offline model weights](docs/translation-model.md) retain their separate licenses; the weights are not licensed under the AGPLv3. Earlier tags and published releases retain the licenses supplied with them.
 

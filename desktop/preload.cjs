@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld('lettide',{
  configureAI:()=>ipcRenderer.invoke('lettide:configure-ai'),
  aiConnectionStatus:()=>ipcRenderer.invoke('lettide:ai-status'),
  openExternal:url=>ipcRenderer.invoke('lettide:open-external',url),
+ copyContactEmail:()=>ipcRenderer.invoke('lettide:copy-contact-email'),
  setLanguage:language=>ipcRenderer.invoke('lettide:language',language),
  openAccountManager:()=>ipcRenderer.invoke('lettide:open-account-manager'),
  openAddAccount:()=>ipcRenderer.invoke('lettide:open-add-account'),

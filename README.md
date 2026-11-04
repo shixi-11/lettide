@@ -19,12 +19,12 @@
 
 ## 下载安装
 
-当前预览版本 **0.5.8**。[完整下载页](https://github.com/shixi-11/lettide/releases/tag/v0.5.8)
+当前预览版本 **0.5.9**。[完整下载页](https://github.com/shixi-11/lettide/releases/tag/v0.5.9)
 
 | 系统与安装包 | 简体中文「叠信」 | English “Lettide” |
 | --- | --- | --- |
-| Windows 10 / 11 · 64 位 | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.5.8/Lettide-0.5.8-win-x64-zh-CN.exe) | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.5.8/Lettide-0.5.8-win-x64-en.exe) |
-| macOS 13+ · Apple 芯片与 Intel | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.8/Lettide-0.5.8-mac-universal-zh-CN.dmg) | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.8/Lettide-0.5.8-mac-universal-en.dmg) |
+| Windows 10 / 11 · 64 位 | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.5.9/Lettide-0.5.9-win-x64-zh-CN.exe) | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.5.9/Lettide-0.5.9-win-x64-en.exe) |
+| macOS 13+ · Apple 芯片与 Intel | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.9/Lettide-0.5.9-mac-universal-zh-CN.dmg) | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.9/Lettide-0.5.9-mac-universal-en.dmg) |
 
 Windows 双击 EXE 安装；macOS 打开 DMG，把应用拖入「应用程序」。内置运行环境，无需安装 Node.js。中文版显示「叠信」，英文版显示「Lettide」，界面语言可在设置中切换。Linux 安装包暂缓。
 
@@ -70,7 +70,7 @@ node scripts/Build-Desktop.mjs --mac --en
 
 ## 许可
 
-叠信自 **0.5.8** 起以 [GNU Affero General Public License v3.0 only（AGPL-3.0-only）](LICENSE) 开源。官方安装包免费，个人和企业均可用于日常及商业工作。分发受许可约束的修改版时，须依照 AGPLv3 提供相应源码并保留同等许可；通过网络让用户使用修改版时，也须按许可向这些用户提供获取相应源码的入口。AGPLv3 允许收费分发，不允许将受其约束的衍生版本闭源发行。
+叠信以 [GNU Affero General Public License v3.0 only（AGPL-3.0-only）](LICENSE) 开源。官方安装包免费，个人和企业均可用于日常及商业工作。分发受许可约束的修改版时，须依照 AGPLv3 提供相应源码并保留同等许可；通过网络让用户使用修改版时，也须按许可向这些用户提供获取相应源码的入口。AGPLv3 允许收费分发，不允许将受其约束的衍生版本闭源发行。
 
 软件按现状提供，不附带担保。使用叠信不要求公开邮件、账号凭据或独立的业务资料。[版权与第三方声明](NOTICE)；第三方依赖及[可选离线模型](docs/translation-model.md)保留各自许可，模型权重不适用 AGPLv3。历史标签及已发布旧版保留随附的原许可。
 

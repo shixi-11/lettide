@@ -1,8 +1,9 @@
-const {app, BrowserWindow, shell, dialog, ipcMain, nativeTheme, Menu, Tray, nativeImage, Notification}=require('electron');
+const {app, BrowserWindow, shell, dialog, ipcMain, nativeTheme, Menu, Tray, nativeImage, Notification, clipboard}=require('electron');
 const {spawn}=require('node:child_process');
 const path=require('node:path');
 const fs=require('node:fs');
 const {aiConnectionStatus}=require('./ai-connections.cjs');
+const {registerContactClipboard}=require('./contact-clipboard.cjs');
 const base=!app.isPackaged&&/^http:\/\/127\.0\.0\.1:\d+$/.test(process.env.LETTIDE_TEST_BASE_URL||'')?process.env.LETTIDE_TEST_BASE_URL:'http://127.0.0.1:47831';
 let buildLocale='system';try{buildLocale=require('./build-locale.json').language||'system';}catch{}
 let language='zh-CN';
@@ -184,6 +185,7 @@ if(!app.requestSingleInstanceLock()){app.quit();}else{
   app.on('second-instance',showMainWindow);
   app.whenReady().then(async()=>{
     const allowed=event=>event.sender===window?.webContents&&new URL(event.senderFrame.url).origin===base;
+    registerContactClipboard(ipcMain,clipboard,allowed);
     ipcMain.on('lettide:locale',(event)=>{event.returnValue={initialLanguage:buildLocale,systemLanguage:app.getLocale()};});
     ipcMain.handle('lettide:language',(event,value)=>{const senderAllowed=allowed(event)||event.sender===accountManagerWindow?.webContents&&new URL(event.senderFrame.url).origin===base;if(!senderAllowed||!['en','zh-CN'].includes(value))throw new Error('Invalid language');language=value;window?.setTitle(value==='en'?'Lettide':'叠信');if(accountManagerWindow)accountManagerWindow.setTitle(value==='en'?'Manage accounts · Lettide':'邮箱管理 · 叠信');updateTrayMenu();return {ok:true};});
     ipcMain.handle('lettide:update-state',event=>{if(!allowed(event))throw new Error('Invalid source');return updater?.snapshot()||{status:'idle',currentVersion:app.getVersion()};});

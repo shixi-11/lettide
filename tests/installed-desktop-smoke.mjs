@@ -17,6 +17,7 @@ try{
  await about.getByRole('button',{name:language==='en'?'Source code':'查看源码',exact:true}).click();
  await about.getByRole('button',{name:/GNU AGPLv3/}).click();
  assert.deepEqual(await app.evaluate(async()=>{const until=Date.now()+5000;while(globalThis.__lettideTestLinks.length<3&&Date.now()<until)await new Promise(r=>setTimeout(r,20));return globalThis.__lettideTestLinks;}),['https://shixilin.com/'+(language==='en'?'en':'zh')+'/support','https://github.com/shixi-11/lettide/tree/v'+version,'https://github.com/shixi-11/lettide/blob/v'+version+'/LICENSE']);
+ await app.evaluate(({clipboard})=>clipboard.writeText('fictional previous clipboard value'));
  await about.getByRole('button',{name:language==='en'?'Copy collaboration email':'复制合作邮箱',exact:true}).click();
  await about.getByText(language==='en'?'Email address copied.':'邮箱地址已复制。',{exact:true}).waitFor();
  assert.equal(await app.evaluate(({clipboard})=>clipboard.readText()),'info@elevencapital.ltd');

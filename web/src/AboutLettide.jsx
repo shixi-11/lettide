@@ -8,7 +8,7 @@ export default function AboutLettide({version,onOpen}) {
  const en=locale()==='en',brand=en?'Lettide':'叠信';
  const [feedback,setFeedback]=useState('');
  async function open(url){setFeedback('');try{await onOpen(url)}catch{setFeedback('open-error')}}
- async function copy(){setFeedback('');try{await navigator.clipboard.writeText(contact);setFeedback('copied')}catch{setFeedback('copy-error')}}
+ async function copy(){setFeedback('');try{if(window.lettide?.copyContactEmail){const result=await window.lettide.copyContactEmail();if(result?.ok!==true)throw new Error('Copy failed')}else await navigator.clipboard.writeText(contact);setFeedback('copied')}catch{setFeedback('copy-error')}}
  return <section className="settings-section about-lettide" aria-label={en?'About Lettide':'关于叠信'}>
   <div><div className="about-title"><h3>{brand}</h3><span>v{version}</span></div><p className="hint">© 2026 {en?'Shixi Lin':'光之十一'}</p></div>
   <p>{en?'Free for personal and business use.':'个人和企业均可免费使用。'}</p>
