@@ -48,3 +48,5 @@ Object.assign(dictionary,{'取消':'Cancel','正在发送的草稿将被保留':
 
 Object.assign(dictionary,{'在邮箱服务器上搜索':'Search on the mail server','再次在邮箱服务器上搜索':'Search the mail server again','正在邮箱服务器上搜索…':'Searching the mail server…','服务器上没有更多结果':'No more results on the server','服务器上也没有找到相关邮件':'No matches on the server either','结果较多，每个邮箱只取最新的 50 封，可换更具体的关键词':'Showing the newest 50 per account. Try a more specific keyword.','部分邮箱只能按主题和发件人搜索较近的邮件':'Some accounts can only match the subject and sender of recent mail','部分邮箱搜索未完成：':'Some accounts could not be searched: ','授权已过期':'authorization expired','搜索超时':'timed out','搜索失败':'search failed','服务器搜索未完成，请重试':'The server search did not finish. Please try again.'});
 Object.assign(dictionary,{'邮件正文':'Message content','显示图片':'Show images','已暂停加载远程图片，保护你的阅读隐私。':'Remote images are paused to protect your privacy.','查看网页版式':'View as web page','改看纯文字':'View as plain text'});
+
+Object.assign(dictionary,{'关于':'About'});

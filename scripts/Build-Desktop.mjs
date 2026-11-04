@@ -23,7 +23,7 @@ const resources=pkg.build.extraResources.map(resource=>resource.from==='../backe
 const macOptions={...pkg.build.mac,...(platform.id==='mac'&&arch==='universal'?{x64ArchFiles:'Contents/Resources/backend/node_modules/{@img,onnxruntime-node}/**/*'}:{})};
 const artifact=`Lettide-${pkg.version}-${platform.id}-${arch}-${language}.`;
 const override={...pkg.build,mac:macOptions,extraResources:resources,productName,
-  extraMetadata:{description:language==='en'?pkg.description:'叠信 — 多邮箱、在线翻译与 AI 邮件工具',author:language==='en'?'Shixi Lin':'光之十一'},
+  extraMetadata:{description:language==='en'?pkg.description:'叠信 — 多邮箱同步、在线翻译与 AI 邮件工具',author:language==='en'?'Shixi Lin':'光之十一'},
   copyright:language==='en'?'Copyright © 2026 Shixi Lin':'Copyright © 2026 光之十一',
   artifactName:artifact+'${ext}',
   nsis:{...pkg.build.nsis,shortcutName:productName,artifactName:artifact+'exe'},

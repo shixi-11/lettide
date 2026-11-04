@@ -1,5 +1,19 @@
 # 更新记录 / Changelog
 
+## 0.5.8
+
+### English
+
+- Lettide is now licensed under AGPLv3 only, allowing personal and business use while requiring corresponding source for covered redistribution and modified network versions. Earlier releases and third-party licenses are unchanged.
+- Settings now includes About with the license, matching source, voluntary support link and collaboration email.
+- Chinese and English introductions now describe the current mail, folder, server search, notification, translation and AI features, with accurate setup and sync limits.
+
+### 中文
+
+- 叠信改用 AGPLv3 only，允许个人和企业使用；受许可约束的再分发及修改版网络服务须按条款提供相应源码。历史版本和第三方许可保留原样。
+- 设置新增「关于」，提供许可、对应版本源码、自愿打赏入口与合作邮箱。
+- 中英文简介按现有邮件、文件夹、服务器搜索、提醒、翻译和 AI 能力重写，补齐接入方式与同步范围。
+
 ## 0.5.7
 
 ### English

@@ -1,57 +1,59 @@
 # 叠信 · Lettide
 
-多个邮箱，一处从容处理。支持 Gmail、Outlook、GoDaddy 与 QQ 邮箱，带正文翻译，可供 Codex、Claude Code 和 Claude Desktop 共用。
+**多个邮箱，一处从容处理。**
+
+叠信是一款适用于 Windows 和 macOS 的开源桌面邮箱客户端。把多个 Gmail、Outlook、GoDaddy 和 QQ 邮箱放在一起，阅读、搜索、整理和回复邮件；遇到外文，点一下即可在线翻译。Codex、Claude Code 和 Claude Desktop 也能通过本机 MCP 工具共用已连接的邮箱。
+
+[English](README.en.md) · [下载安装](#下载安装) · [邮箱接入](docs/邮箱接入.md) · [更新记录](CHANGELOG.md)
+
+## 现在可以做什么
+
+- **多邮箱统一管理**：同一平台可添加多个账号，统一查看收件箱，也可搜索、切换单个邮箱；独立窗口管理账号顺序和连接。
+- **同步文件夹与标签**：显示邮箱里的收件箱、已发送、草稿、垃圾邮件、已删除及自建文件夹，支持 Gmail 多标签关系；全部邮箱模式下按账号分组。
+- **阅读与整理**：已读、未读、星标、移动、删除、恢复，以及邮箱支持的归档；HTML 邮件保留排版，普通邮件适配日间、夜间主题，远程图片由你决定是否加载。
+- **写信与附件**：撰写、回复、转发、抄送、密送、附件收发；保存本机草稿、查看服务商草稿。本机草稿支持删除、按当前范围清空及从已删除恢复。每封邮件最多 10 个附件，总大小不超过 10 MB。
+- **搜索新旧邮件**：先搜索本机缓存；需要更早的邮件时，可按需搜索邮箱服务器。服务器搜索每个账号最多返回 50 条匹配结果。
+- **点选翻译**：原文、译文、对照切换，选择源语言和目标语言；使用 Google 免费在线翻译，无需密钥、模型或 AI 助手，译文在本机缓存。
+- **后台同步与提醒**：窗口关闭后收起到托盘，继续检查新邮件；后台收到新邮件时可显示系统通知，任务栏和托盘显示未读数。支持中英文、日间、夜间和跟随系统。
+- **让助手调用邮箱**：Codex、Claude Code 和 Claude Desktop 可读取、搜索、同步、创建草稿，并在明确确认后发送邮件；共用本机连接，无需为每个助手重复登录邮箱。
 
 ## 下载安装
 
-当前预览版本 **0.5.7**。[下载页](https://github.com/shixi-11/lettide/releases/tag/v0.5.7) · [更新记录](CHANGELOG.md) · [English](README.en.md)
+当前预览版本 **0.5.8**。[完整下载页](https://github.com/shixi-11/lettide/releases/tag/v0.5.8)
 
 | 系统与安装包 | 简体中文「叠信」 | English “Lettide” |
 | --- | --- | --- |
-| Windows 10 / 11 · 64 位 | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.5.7/Lettide-0.5.7-win-x64-zh-CN.exe) | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.5.7/Lettide-0.5.7-win-x64-en.exe) |
-| macOS 13+ · Apple 芯片与 Intel | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.7/Lettide-0.5.7-mac-universal-zh-CN.dmg) | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.7/Lettide-0.5.7-mac-universal-en.dmg) |
+| Windows 10 / 11 · 64 位 | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.5.8/Lettide-0.5.8-win-x64-zh-CN.exe) | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.5.8/Lettide-0.5.8-win-x64-en.exe) |
+| macOS 13+ · Apple 芯片与 Intel | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.8/Lettide-0.5.8-mac-universal-zh-CN.dmg) | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.8/Lettide-0.5.8-mac-universal-en.dmg) |
 
-Windows 双击安装；macOS 打开 DMG 后把应用拖入「应用程序」。内置运行环境，无需安装 Node.js。中文版与英文版功能相同，可在设置中切换中文、English 或跟随系统。
+Windows 双击 EXE 安装；macOS 打开 DMG，把应用拖入「应用程序」。内置运行环境，无需安装 Node.js。中文版显示「叠信」，英文版显示「Lettide」，界面语言可在设置中切换。Linux 安装包暂缓。
 
-下载页按系统和语言提供直接下载入口。当前为未签名预览版：Windows 可能提示未知发布者；macOS 未经过 Apple 公证，首次打开可能需在系统「隐私与安全性」中允许。
+当前安装包为未签名预览版：Windows 可能提示未知发布者；macOS 未经过 Apple 公证，首次打开可能需在系统「隐私与安全性」中允许。
 
-设置中提供「检查更新」，发现新版后可直接下载和安装；启动时也会检查并提示。下载会核对文件完整性，安装前先保存当前草稿。Windows 安装后重新打开应用，Mac 按 DMG 提示替换应用；账号和邮件缓存保留。
+应用启动后会检查新版并在后台下载；准备好后点击「重启并更新」。设置中也有「检查更新」。安装前核对文件完整性并保存当前草稿，账号与邮件缓存保留；Mac 按 DMG 提示替换应用。
 
 ## 开始使用
 
-1. 添加邮箱。同一平台可添加多个账号。QQ 使用邮箱或号码与授权码；GoDaddy Professional 使用邮箱密码；Gmail 与 Microsoft 365 在默认浏览器授权。左上角点击切换邮箱，账号较多时可以搜索；文件夹与标签跟随当前邮箱，选择「全部邮箱」可统一阅读，文件夹按账号分组展开；「管理邮箱」打开独立窗口调整顺序或移除连接。
-2. Gmail 和 Microsoft 365 首次需有效的 OAuth 应用配置。当前没有附带发行者的授权应用，不能跳过注册步骤；见 [邮箱接入](docs/邮箱接入.md)。QQ 获取授权码的入口已放在连接页面。
-3. 点击「译文」或「对照」，直接使用 Google 免费在线翻译，无需填写密钥或下载模型。只发送你点击翻译的当前邮件正文，译文在本机加密缓存，原文保留。
-4. 需要 AI 时，点击「AI 连接 → 配置 AI 助手」，再重启相应客户端。
+1. **添加邮箱**：QQ 使用邮箱地址或 QQ 号码与授权码；GoDaddy Professional 使用邮箱密码；Gmail、Outlook 和 GoDaddy Microsoft 365 在默认浏览器完成授权。Gmail 和 Microsoft 首次连接需要 OAuth 应用配置，目前未附带发行者的授权应用，具体见[邮箱接入](docs/邮箱接入.md)。
+2. **切换与整理**：左上角选择单个邮箱或全部邮箱。文件夹跟随账号切换；全部邮箱下可分别展开各账号目录。邮件右键菜单提供常用操作。
+3. **阅读与翻译**：选择一封邮件，在「原文／译文／对照」间切换。点击附件下载，点击邮件链接在浏览器打开。
+4. **连接助手**：打开「AI 连接 → 配置 AI 助手」，按提示重启对应客户端。助手使用同一份本机邮箱连接；发送邮件需要明确确认。
 
-连接由本机后台加密保存，正常情况下无需反复登录。授权撤销、密码或组织策略变化时需要重新连接。关闭桌面窗口后收起到系统托盘并继续同步；双击图标打开，右键选择「退出叠信」结束应用和后台服务。助手再次调用时可以按需启动后台。
+账号连接在本机加密保存，正常情况下无需反复登录；授权被撤销、密码或组织政策变化时需要重新连接。关闭窗口会收起到托盘；右键托盘图标选择「退出叠信」才会结束应用及共享服务。之后助手调用可以按需启动后台。
 
-## 邮箱功能
+## 同步、翻译与隐私
 
-- 多账号统一收件箱、筛选、缓存搜索、已读与星标。
-- 同步实际文件夹与 Gmail 标签：收件箱、已发送、归档、垃圾邮件、已删除及自建分类。
-- 移动、归档与恢复到收件箱；保留 Gmail 同一邮件的多标签关系。
-- 原文、译文与对照阅读，译文本机缓存，原文保留。
-- 撰写、回复、转发、本机草稿、查看服务商草稿、抄送、密送、附件下载与发送。
-- 每封最多 10 个附件，总大小不超过 10 MB。
-- 日间、夜间、系统外观，中英文及系统语言。
-- MCP 读取、搜索、同步、草稿与显式确认发送工具；SMTP 已发出邮件可单独补存副本，无需重发。
+收件箱与已发送约每 **30 秒**检查一次，各账号并行处理，属于轮询同步。其他文件夹每分钟分批检查，目录约每十分钟刷新；选择文件夹或点击同步可立即检查当前分类。每次读取文件夹最近 60 封邮件，保留此前缓存的历史内容。列表先加载简短预览，正文按需读取，附件点击后下载；离线阅读使用已下载的正文。
 
-每次同步读取文件夹最近 60 封邮件，并保留已经缓存的历史内容；搜索针对本机缓存。列表只传输简短预览，正文按需加载，附件点击后才下载；离线阅读和正文搜索使用已下载的正文。收件箱与已发送约每 30 秒检查，各邮箱并行处理；Gmail 无变化时只检查历史游标，其他文件夹每分钟分批检查，目录约每十分钟刷新。选择文件夹或点击同步可立即更新当前分类。
+只有你点击翻译时，当前邮件正文才会发送给 Google；不发送账号、主题、邮件头或附件。原文与缓存译文在本机加密保存。免费网页翻译可能临时限流或变更，失败可重试，不会自动切换收费服务。[翻译说明](docs/translation.md)
 
-批量操作、全历史服务端搜索、HTML 排版编辑、通知及开机启动仍在后续计划中。发送结果不确定时禁止自动重发，应先检查已发送邮件。
+邮件缓存使用 AES-256-GCM 加密，Windows 通过当前用户 DPAPI 保护密钥，macOS 使用 Keychain。默认数据目录为 Windows 的 `%USERPROFILE%/.lettide` 和 macOS 的 `~/Library/Application Support/Lettide`，可用 `LETTIDE_DATA_DIR` 指定。不要把数据目录、令牌、OAuth 密钥或客户端备份上传到 Git。
 
-## 翻译与隐私
+发送结果不确定时不自动重发；应先核对已发送邮件。SMTP 邮件已发送但副本未保存时，可单独补存副本，无需再次发信。
 
-点击「译文」或「对照」后，仅将当前邮件正文发送给 Google，不发送账号、主题、邮件头或附件。支持源语言与目标语言选择、取消、重试和本机译文缓存，不依赖 Codex 或 Claude，也不自动加载本地模型。
+## 开发与构建
 
-免费网页翻译入口不是 Google Cloud Translation 付费 API，可能临时限流或变更；失败时会明确提示重试，不会切换收费服务。详见[翻译说明](docs/translation.md)。旧离线引擎仅保留兼容接口，普通阅读界面不再使用；历史模型文件及其许可见[模型来源与许可](docs/translation-model.md)。
-
-Windows 使用当前用户 DPAPI 保护随机密钥，macOS 使用 Keychain；邮件缓存使用 AES-256-GCM 加密。数据分别位于 `%USERPROFILE%/.lettide`（0.3.12 起；旧目录数据首次启动时自动复制过来，原处保留；可用环境变量 `LETTIDE_DATA_DIR` 指定）、`~/Library/Application Support/Lettide`（macOS）。不要上传数据目录、令牌、授权码、客户端备份或 OAuth 密钥。
-
-## 开发与发布
-
-需要 Node.js 24+、pnpm 11.25。分别在 `backend`、`web`、`desktop` 运行 `pnpm install --frozen-lockfile`。
+需要 Node.js 24+、pnpm 11.25。在 `backend`、`web`、`desktop` 分别执行 `pnpm install --frozen-lockfile`，然后：
 
 ```sh
 node --test backend/tests/*.test.js
@@ -64,14 +66,16 @@ node scripts/Build-Desktop.mjs --mac    # 在 macOS 构建通用中文版
 node scripts/Build-Desktop.mjs --mac --en
 ```
 
-界面测试只用隔离的虚构数据。`tests/ui-smoke.mjs` 使用 Playwright，以 `PLAYWRIGHT_MODULE` 指向本机安装的模块。`output` 不进入 Git。
-
-发布时统一更新三个包的版本与双语更新记录，验证、提交并同步源码，再推送同版本标签。工作流会自动生成中英文发布页和安装包下载标签。使用者直接下载 Release 安装包即可；维护流程见[发布规范](docs/releasing.md)。
+源码包含应用及构建脚本；下载对应版本时，可在发布页取得同一标签的源码。发布维护见[发布规范](docs/releasing.md)，后台接口见[服务说明](backend/README.md)。测试使用隔离的虚构数据，`output` 不进入 Git。
 
 ## 许可
 
-[PolyForm Noncommercial 1.0.0](LICENSE)，商业用途需书面授权。项目属于源码公开项目；版权声明见 [NOTICE](NOTICE)，第三方依赖保留各自许可。
+叠信自 **0.5.8** 起以 [GNU Affero General Public License v3.0 only（AGPL-3.0-only）](LICENSE) 开源。官方安装包免费，个人和企业均可用于日常及商业工作。分发受许可约束的修改版时，须依照 AGPLv3 提供相应源码并保留同等许可；通过网络让用户使用修改版时，也须按许可向这些用户提供获取相应源码的入口。AGPLv3 允许收费分发，不允许将受其约束的衍生版本闭源发行。
 
-应用内更新检查已公开的预览版及正式版，忽略发布草稿。自动检查只提示；可在设置中手动检查、下载并选择安装。安装前保存草稿，安装后核对真实运行版本。
+软件按现状提供，不附带担保。使用叠信不要求公开邮件、账号凭据或独立的业务资料。[版权与第三方声明](NOTICE)；第三方依赖及[可选离线模型](docs/translation-model.md)保留各自许可，模型权重不适用 AGPLv3。历史标签及已发布旧版保留随附的原许可。
 
-本机草稿支持列表删除、右键删除和编辑窗口删除；“清空草稿”处理当前邮箱及搜索范围内确认过的本机草稿。删除后可在“已删除”中恢复；正在发送的草稿会保留，发送结果待确认的记录不会因此重新发送。邮箱服务商中的草稿仍可单独移到其已删除文件夹。
+## 支持与合作
+
+叠信由光之十一开发和维护。如果它对你有帮助，欢迎[自愿打赏，支持后续维护](https://shixilin.com/zh/support)。打赏不影响任何功能的使用，应用「设置 → 关于」中也有入口。
+
+合作联系：[info@elevencapital.ltd](mailto:info@elevencapital.ltd)。

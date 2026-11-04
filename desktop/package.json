@@ -1,9 +1,9 @@
 {
   "name": "lettide",
-  "version": "0.5.7",
-  "description": "Lettide — a calm home for your mail",
+  "version": "0.5.8",
+  "description": "Lettide — desktop email with online translation and shared AI mail tools",
   "author": "Shixi Lin",
-  "license": "PolyForm-Noncommercial-1.0.0",
+  "license": "AGPL-3.0-only",
   "private": true,
   "main": "main.cjs",
   "scripts": {
@@ -34,6 +34,10 @@
       "ai-connections.cjs"
     ],
     "extraResources": [
+      {
+        "from": "../THIRD_PARTY_NOTICES",
+        "to": "THIRD_PARTY_NOTICES"
+      },
       {
         "from": "../backend",
         "to": "backend",
