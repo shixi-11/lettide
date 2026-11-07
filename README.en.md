@@ -14,23 +14,23 @@ Lettide is an open-source desktop email client for Windows and macOS. Bring mult
 - **Write and send attachments:** compose, reply, forward, add Cc or Bcc, save local drafts and view provider drafts. Delete local drafts, clear the confirmed selection or restore them from Trash. Each message supports up to ten attachments and 10 MB total.
 - **Find recent and older mail:** search the local cache first, then search the mail server when you need older messages. Server search returns up to 50 matches per account.
 - **Translate on demand:** switch between Original, Translation and Side by side, with source and target language choices. Google’s free online translation needs no API key, downloaded model or connected assistant; results are cached locally.
-- **Stay connected in the background:** closing the window keeps Lettide in the system tray. New inbox mail can trigger system notifications, with unread counts on the taskbar and tray icon. Choose English or Chinese and light, dark or system appearance.
+- **Stay connected in the background:** closing the window keeps Lettide in the system tray. New mail notifications and the taskbar badge are off by default. Enable them in Settings. The unread count remains available in the tray. Choose English or Chinese and light, dark or system appearance.
 - **Connect your assistants:** Codex, Claude Code and Claude Desktop can read, search, sync and create drafts, then send only after explicit confirmation. They share the local connection, so you do not sign in to each mailbox again for every assistant.
 
 ## Download
 
-Current preview: **0.5.9**. [All downloads](https://github.com/shixi-11/lettide/releases/tag/v0.5.9)
+Current preview: **0.5.10**. [All downloads](https://github.com/shixi-11/lettide/releases/tag/v0.5.10)
 
 | Platform and package | English “Lettide” | 简体中文「叠信」 |
 | --- | --- | --- |
-| Windows 10 / 11 · x64 | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.5.9/Lettide-0.5.9-win-x64-en.exe) | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.5.9/Lettide-0.5.9-win-x64-zh-CN.exe) |
-| macOS 13+ · Apple Silicon + Intel | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.9/Lettide-0.5.9-mac-universal-en.dmg) | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.9/Lettide-0.5.9-mac-universal-zh-CN.dmg) |
+| Windows 10 / 11 · x64 | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.5.10/Lettide-0.5.10-win-x64-en.exe) | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.5.10/Lettide-0.5.10-win-x64-zh-CN.exe) |
+| macOS 13+ · Apple Silicon + Intel | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.10/Lettide-0.5.10-mac-universal-en.dmg) | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.10/Lettide-0.5.10-mac-universal-zh-CN.dmg) |
 
 Run the Windows EXE, or open the Mac DMG and drag the app into Applications. Node.js is included. English downloads use Lettide; Chinese downloads use 叠信. Change the interface language in Settings. Linux installers are deferred.
 
 These preview installers are unsigned. Windows may show an unknown publisher warning; the Mac app is not notarized and may need approval in Privacy & Security on first launch.
 
-Lettide checks for updates after launch and downloads new versions in the background. When one is ready, choose Restart to update. Settings also includes Check for updates. Downloads are verified and your current draft is saved before installation; accounts and cached mail are preserved. On Mac, follow the DMG instructions to replace the app.
+Lettide checks for updates after launch and downloads new versions in the background. When one is ready, choose Install update in the app or tray menu. Settings also includes Check for updates. Lettide verifies the download and saves your current draft before installation. On Windows, open Lettide manually after installation. On Mac, follow the DMG instructions to replace the app.
 
 ## Get started
 

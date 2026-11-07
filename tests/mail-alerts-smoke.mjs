@@ -24,6 +24,11 @@ try{
  // Record notifications and tray tooltips instead of showing them on the desktop.
  await app.evaluate(({Notification,Tray})=>{globalThis.__notes=[];Notification.prototype.show=function(){globalThis.__notes.push(this)};const tip=Tray.prototype.setToolTip;Tray.prototype.setToolTip=function(text){globalThis.__tip=text;return tip.call(this,text)}});
  const page=await app.firstWindow();await page.getByRole('heading',{name:'收件箱',exact:true}).waitFor();
+ await page.getByRole('button',{name:'设置',exact:true}).click();
+ const toggle=page.getByRole('checkbox',{name:/新邮件提醒/});await toggle.waitFor();assert.equal(await toggle.isChecked(),false);
+ await toggle.check();
+ await waitFor(async()=>{try{return JSON.parse(await readFile(path.join(dir,'profile','desktop-preferences.json'),'utf8')).newMailAlerts===true}catch{return false}},5000);
+ await page.getByRole('button',{name:'关闭',exact:true}).click();
  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].hide());
  // The unread mail that was already there is only the baseline.
  await page.waitForTimeout(1500);
@@ -36,7 +41,7 @@ try{
  await page.getByRole('heading',{name:'Fresh fixture mail'}).waitFor({timeout:10000});
  assert.equal(await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].isVisible()),true);checks.push('Clicking the notification opens the window on that mail');
  await page.getByRole('button',{name:'设置',exact:true}).click();
- const toggle=page.getByRole('checkbox',{name:/新邮件提醒/});await toggle.waitFor();assert.equal(await toggle.isChecked(),true);await toggle.uncheck();
+ await toggle.waitFor();assert.equal(await toggle.isChecked(),true);await toggle.uncheck();
  await waitFor(async()=>{try{return JSON.parse(await readFile(path.join(dir,'profile','desktop-preferences.json'),'utf8')).newMailAlerts===false}catch{return false}},5000);
  await page.getByRole('button',{name:'关闭',exact:true}).click();
  await app.evaluate(({BrowserWindow})=>BrowserWindow.getAllWindows()[0].hide());

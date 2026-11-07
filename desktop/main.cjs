@@ -10,7 +10,7 @@ let language='zh-CN';
 const root=app.isPackaged?process.resourcesPath:path.resolve(__dirname,'..');
 let updater,pendingInstaller,updateTimer,updateInterval,aiConfiguration;
 let window,accountManagerWindow,tray,isQuitting=false,backendStopped=false,quitPending=false,mainReady=false,pendingAddAccount=false;
-let mailWatch={timer:null,seen:null,unread:0,notes:new Set()},desktopPrefs={newMailAlerts:true},prefsFile=null;
+let mailWatch={timer:null,seen:null,unread:0,notes:new Set()},desktopPrefs={newMailAlerts:false},prefsFile=null;
 app.setName(buildLocale==='zh-CN'?'叠信':'Lettide');
 app.setPath('userData',path.join(app.getPath('appData'),'Lettide'));
 if(!app.isPackaged&&process.env.LETTIDE_TEST_USER_DATA)app.setPath('userData',process.env.LETTIDE_TEST_USER_DATA);
@@ -29,7 +29,7 @@ function updateTrayMenu(){
     {label:en?'Manage accounts':'管理邮箱',click:()=>openAccountManagerWindow()},
     {label:en?'New mail alerts':'新邮件提醒',type:'checkbox',checked:desktopPrefs.newMailAlerts,click:item=>setDesktopPrefs({newMailAlerts:item.checked})},
     {type:'separator'},
-    ...(ready?[{label:en?`Restart to update to ${ready}`:`重启并更新到 ${ready}`,click:async()=>{const result=await installUpdate();if(result.error)dialog.showErrorBox(en?'Update not installed':'暂未安装更新',result.error);}},{type:'separator'}]:[]),
+    ...(ready?[{label:en?`Install update ${ready}`:`安装更新 ${ready}`,click:async()=>{const result=await installUpdate();if(result.error)dialog.showErrorBox(en?'Update not installed':'暂未安装更新',result.error);}},{type:'separator'}]:[]),
     {label:en?'Quit Lettide':'退出叠信',click:()=>app.quit()},
   ]));
 }
@@ -47,7 +47,11 @@ async function loadDesktopPrefs(){
  try{const saved=JSON.parse(fs.readFileSync(prefsFile,'utf8'));if(typeof saved.newMailAlerts==='boolean')desktopPrefs.newMailAlerts=saved.newMailAlerts;}catch{}
 }
 function setDesktopPrefs(patch){
- if(typeof patch?.newMailAlerts==='boolean')desktopPrefs.newMailAlerts=patch.newMailAlerts;
+ if(typeof patch?.newMailAlerts==='boolean'){
+  desktopPrefs.newMailAlerts=patch.newMailAlerts;
+  if(!desktopPrefs.newMailAlerts)for(const note of mailWatch.notes)note.close();
+  updateUnreadBadge();
+ }
  try{if(prefsFile){fs.mkdirSync(path.dirname(prefsFile),{recursive:true});fs.writeFileSync(prefsFile,JSON.stringify(desktopPrefs));}}catch{}
  updateTrayMenu();return {...desktopPrefs};
 }
@@ -59,10 +63,15 @@ function unreadDot(){
   data[i]=Math.round((0xfa*edge+255*(1-edge))*ring);data[i+1]=Math.round((0x7f*edge+255*(1-edge))*ring);data[i+2]=Math.round((0x37*edge+255*(1-edge))*ring);data[i+3]=a;}
  return nativeImage.createFromBitmap(data,{width:size,height:size});
 }
-function showUnread(count){
- if(mailWatch.unread===count)return;mailWatch.unread=count;
+function updateUnreadBadge(){
+ const count=desktopPrefs.newMailAlerts?mailWatch.unread:0;
  if(process.platform==='darwin'||process.platform==='linux')app.setBadgeCount(count);
  if(process.platform==='win32'&&window&&!window.isDestroyed())window.setOverlayIcon(count?unreadDot():null,count?(language==='en'?`${count} unread`:`${count} 封未读`):'');
+}
+function showUnread(count){
+ if(mailWatch.unread===count)return;
+ mailWatch.unread=count;
+ updateUnreadBadge();
  updateTrayMenu();
 }
 function openMessage(message){showMainWindow();if(mainReady&&window&&!window.isDestroyed())window.webContents.send('lettide:open-message',{id:message.id,accountId:message.accountId});}
@@ -123,12 +132,9 @@ async function setupUpdater(){
  const {DesktopUpdater}=require('./updater.cjs');
  const {dataDirectory}=await import(require('node:url').pathToFileURL(path.join(root,'backend','src','store.js')).href);
  updater=new DesktopUpdater({version:app.getVersion(),language,cacheDir:path.join(dataDirectory(),'updates')});
- let announced=null;
  updater.on('change',state=>{
   if(window&&!window.isDestroyed())window.webContents.send('lettide:update-state',state);
   updateTrayMenu();
-  // The window often lives hidden in the tray, where the sidebar notice is never seen.
-  if(state.status==='ready'&&state.latestVersion&&announced!==state.latestVersion){announced=state.latestVersion;if(!(window?.isVisible()&&window.isFocused())&&Notification.isSupported()){const en=language==='en',note=new Notification({title:en?`Lettide ${state.latestVersion} is ready`:`叠信 ${state.latestVersion} 已准备好`,body:en?'Open Lettide and restart to update.':'打开叠信，点「重启并更新」即可。'});note.on('click',showMainWindow);note.show();}}
  });
  updateTimer=setTimeout(fetchUpdate,8000);updateTimer.unref?.();
  updateInterval=setInterval(fetchUpdate,6*60*60*1000);updateInterval.unref?.();
@@ -181,8 +187,17 @@ function openAccountManagerWindow(){
   accountManagerWindow.on('closed',()=>{accountManagerWindow=null;});
   void accountManagerWindow.loadURL(base+'/?window=accounts');
 }
-if(!app.requestSingleInstanceLock()){app.quit();}else{
-  app.on('second-instance',showMainWindow);
+// The previous updater can launch the new executable with --updated. Service
+// entry points must also stay quiet if a caller omitted ELECTRON_RUN_AS_NODE.
+const launchArgs=process.argv.slice(app.isPackaged?1:2);
+const backgroundLaunch=launchArgs.some(arg=>
+  ['--updated','--background','--hidden','--autostart','--startup','--restore-last-session'].includes(arg)
+  || /(?:^|[\\/])(?:mcp\.js|server\.js|Configure-AI\.mjs)$/i.test(arg)
+);
+const loginLaunch=app.isPackaged&&process.platform==='darwin'&&app.getLoginItemSettings().wasOpenedAtLogin;
+if(backgroundLaunch||loginLaunch){app.exit(0);}
+else if(!app.requestSingleInstanceLock({openWindow:true})){app.quit();}else{
+  app.on('second-instance',(_event,_argv,_directory,data)=>{if(data?.openWindow===true)showMainWindow();});
   app.whenReady().then(async()=>{
     const allowed=event=>event.sender===window?.webContents&&new URL(event.senderFrame.url).origin===base;
     registerContactClipboard(ipcMain,clipboard,allowed);
@@ -225,12 +240,12 @@ if(!app.requestSingleInstanceLock()){app.quit();}else{
     (async()=>{try{await stopSharedService();}catch(error){if(pendingInstaller){pendingInstaller=null;quitPending=false;dialog.showErrorBox(language==='en'?'Update postponed':'暂未安装更新',language==='en'?'The mail service is still finishing work. Try installing again shortly.':'邮件服务仍在完成当前任务，请稍后再点安装更新。');return;}}
       clearTimeout(updateTimer);clearInterval(updateInterval);
       if(pendingInstaller){const file=pendingInstaller;pendingInstaller=null;try{if(process.platform==='win32'){
-        const child=spawn(file,['/S','--updated','--force-run'],{detached:true,stdio:'ignore',windowsHide:true});await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject)});child.unref();
+        const child=spawn(file,['/S','--updated'],{detached:true,stdio:'ignore',windowsHide:true});await new Promise((resolve,reject)=>{child.once('spawn',resolve);child.once('error',reject)});child.unref();
        }else{const error=await shell.openPath(file);if(error)throw new Error(error);}
       }catch(error){quitPending=false;dialog.showErrorBox(language==='en'?'Could not open installer':'无法打开安装程序',error.message);return;}}
       backendStopped=true;app.quit();
     })();
   });
-  app.on('activate',()=>{if(!window)openWindow();else showMainWindow();});
+  app.on('activate',()=>{if(window)showMainWindow();});
   app.on('window-all-closed',()=>{});
 }

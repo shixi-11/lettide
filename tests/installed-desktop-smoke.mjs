@@ -10,6 +10,7 @@ try{
  const license=await readFile(path.join(resources,'LICENSE'),'utf8');assert.equal(license,await readFile(path.join(root,'LICENSE'),'utf8'));assert.match(license,/GNU AFFERO GENERAL PUBLIC LICENSE/);assert.equal(await readFile(path.join(resources,'THIRD_PARTY_NOTICES'),'utf8'),await readFile(path.join(root,'THIRD_PARTY_NOTICES'),'utf8'));
  await app.evaluate(({shell})=>{globalThis.__lettideTestLinks=[];shell.openExternal=async url=>{globalThis.__lettideTestLinks.push(url);};});
  await page.getByRole('button',{name:language==='en'?'Settings':'设置',exact:true}).click();
+ const alerts=page.getByRole('checkbox',{name:language==='en'?/New mail alerts/:/新邮件提醒/});await alerts.waitFor();assert.equal(await alerts.isChecked(),false);
  await page.getByRole('button',{name:language==='en'?'About':'关于',exact:true}).click();
  const about=page.getByRole('region',{name:language==='en'?'About Lettide':'关于叠信'});await about.getByRole('heading',{name,exact:true}).waitFor();
  assert.ok((await about.innerText()).includes(language==='en'?'Shixi Lin':'光之十一'));
@@ -24,5 +25,27 @@ try{
  await page.getByRole('button',{name:language==='en'?'Close':'关闭',exact:true}).click();
  const {Client}=await import(pathToFileURL(path.join(resources,'backend/node_modules/@modelcontextprotocol/sdk/dist/esm/client/index.js')).href),{StdioClientTransport}=await import(pathToFileURL(path.join(resources,'backend/node_modules/@modelcontextprotocol/sdk/dist/esm/client/stdio.js')).href);
  client=new Client({name:'lettide-linux-fixture',version:'1'});transport=new StdioClientTransport({command:executable,args:[path.join(resources,'backend/src/mcp.js')],env:{...env,ELECTRON_RUN_AS_NODE:'1'},stderr:'pipe'});await client.connect(transport);assert.equal(client.getServerVersion().version,version);const result=await client.callTool({name:'mail_accounts_list',arguments:{}});assert.deepEqual(JSON.parse(result.content.find(c=>c.type==='text').text),[]);await client.close();client=null;await transport.close();transport=null;
- const raw=await readFile(path.join(data,process.platform==='win32'?'state.dpapi':'state.enc'));assert.equal(raw.subarray(0,4).toString(),{win32:'YQ03',darwin:'YQ02',linux:'YQ04'}[process.platform]);await page.screenshot({path:path.join(root,'output',`installed-${process.platform}-${language}.png`)});console.log(JSON.stringify({installedDesktopUI:true,platform:process.platform,language,version,brand:name,rendererIsolated:true,mcpConnected:true,nativeEncryptedStore:true,agplLicenseBundled:true,localizedSupportLinks:true,collaborationEmailCopied:true,realMailAccessed:false}));
+ // An old updater or a misconfigured service launch must not raise the live window.
+ await app.evaluate(({BrowserWindow})=>{
+   const main=BrowserWindow.getAllWindows()[0];
+   main.hide();
+   globalThis.__lettideShowCount=0;
+   main.on('show',()=>globalThis.__lettideShowCount++);
+ });
+ for(const args of [['--updated'],['--background'],[path.join(resources,'backend/src/mcp.js')]]){
+   const launch=spawnSync(executable,args,{env,windowsHide:true,timeout:15000});
+   assert.equal(launch.status,0,launch.error?.message||String(launch.stderr));
+ }
+ assert.deepEqual(await app.evaluate(async({BrowserWindow})=>{
+   await new Promise(resolve=>setTimeout(resolve,500));
+   return {visible:BrowserWindow.getAllWindows()[0].isVisible(),shows:globalThis.__lettideShowCount};
+ }),{visible:false,shows:0});
+ const reopen=spawnSync(executable,[],{env,windowsHide:true,timeout:15000});
+ assert.equal(reopen.status,0,reopen.error?.message||String(reopen.stderr));
+ assert.equal(await app.evaluate(async({BrowserWindow})=>{
+   const deadline=Date.now()+5000;
+   while(!BrowserWindow.getAllWindows()[0].isVisible()&&Date.now()<deadline)await new Promise(resolve=>setTimeout(resolve,25));
+   return BrowserWindow.getAllWindows()[0].isVisible();
+ }),true);
+ const raw=await readFile(path.join(data,process.platform==='win32'?'state.dpapi':'state.enc'));assert.equal(raw.subarray(0,4).toString(),{win32:'YQ03',darwin:'YQ02',linux:'YQ04'}[process.platform]);await page.screenshot({path:path.join(root,'output',`installed-${process.platform}-${language}.png`)});console.log(JSON.stringify({installedDesktopUI:true,platform:process.platform,language,version,brand:name,rendererIsolated:true,mcpConnected:true,nativeEncryptedStore:true,agplLicenseBundled:true,localizedSupportLinks:true,collaborationEmailCopied:true,desktopAlertsDefaultOff:true,backgroundLaunchStayedHidden:true,manualReopenWorked:true,realMailAccessed:false}));
 }finally{await client?.close();await transport?.close();await app?.close();if(process.platform==='linux')spawnSync('secret-tool',['clear','application','com.lettide.store.encryption-key.v1','store',createHash('sha256').update(path.join(data,process.platform==='win32'?'state.dpapi':'state.enc')).digest('hex')],{stdio:'ignore'});await rm(dir,{recursive:true,force:true});}

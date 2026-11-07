@@ -14,23 +14,23 @@
 - **写信与附件**：撰写、回复、转发、抄送、密送、附件收发；保存本机草稿、查看服务商草稿。本机草稿支持删除、按当前范围清空及从已删除恢复。每封邮件最多 10 个附件，总大小不超过 10 MB。
 - **搜索新旧邮件**：先搜索本机缓存；需要更早的邮件时，可按需搜索邮箱服务器。服务器搜索每个账号最多返回 50 条匹配结果。
 - **点选翻译**：原文、译文、对照切换，选择源语言和目标语言；使用 Google 免费在线翻译，无需密钥、模型或 AI 助手，译文在本机缓存。
-- **后台同步与提醒**：窗口关闭后收起到托盘，继续检查新邮件；后台收到新邮件时可显示系统通知，任务栏和托盘显示未读数。支持中英文、日间、夜间和跟随系统。
+- **后台同步与提醒**：窗口关闭后收起到托盘，继续检查新邮件；新邮件弹窗和任务栏未读提示默认关闭，可在设置中开启。托盘可查看未读数。支持中英文、日间、夜间和跟随系统。
 - **让助手调用邮箱**：Codex、Claude Code 和 Claude Desktop 可读取、搜索、同步、创建草稿，并在明确确认后发送邮件；共用本机连接，无需为每个助手重复登录邮箱。
 
 ## 下载安装
 
-当前预览版本 **0.5.9**。[完整下载页](https://github.com/shixi-11/lettide/releases/tag/v0.5.9)
+当前预览版本 **0.5.10**。[完整下载页](https://github.com/shixi-11/lettide/releases/tag/v0.5.10)
 
 | 系统与安装包 | 简体中文「叠信」 | English “Lettide” |
 | --- | --- | --- |
-| Windows 10 / 11 · 64 位 | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.5.9/Lettide-0.5.9-win-x64-zh-CN.exe) | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.5.9/Lettide-0.5.9-win-x64-en.exe) |
-| macOS 13+ · Apple 芯片与 Intel | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.9/Lettide-0.5.9-mac-universal-zh-CN.dmg) | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.9/Lettide-0.5.9-mac-universal-en.dmg) |
+| Windows 10 / 11 · 64 位 | [下载 exe](https://github.com/shixi-11/lettide/releases/download/v0.5.10/Lettide-0.5.10-win-x64-zh-CN.exe) | [Download exe](https://github.com/shixi-11/lettide/releases/download/v0.5.10/Lettide-0.5.10-win-x64-en.exe) |
+| macOS 13+ · Apple 芯片与 Intel | [下载 dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.10/Lettide-0.5.10-mac-universal-zh-CN.dmg) | [Download dmg](https://github.com/shixi-11/lettide/releases/download/v0.5.10/Lettide-0.5.10-mac-universal-en.dmg) |
 
 Windows 双击 EXE 安装；macOS 打开 DMG，把应用拖入「应用程序」。内置运行环境，无需安装 Node.js。中文版显示「叠信」，英文版显示「Lettide」，界面语言可在设置中切换。Linux 安装包暂缓。
 
 当前安装包为未签名预览版：Windows 可能提示未知发布者；macOS 未经过 Apple 公证，首次打开可能需在系统「隐私与安全性」中允许。
 
-应用启动后会检查新版并在后台下载；准备好后点击「重启并更新」。设置中也有「检查更新」。安装前核对文件完整性并保存当前草稿，账号与邮件缓存保留；Mac 按 DMG 提示替换应用。
+应用启动后会检查新版并在后台下载，准备好后可在应用或托盘选择「安装更新」。设置中也有「检查更新」。安装前会校验文件并保存当前草稿。Windows 安装完成后请手动打开叠信，Mac 按 DMG 提示替换应用。
 
 ## 开始使用
 

@@ -1,5 +1,17 @@
 # 更新记录 / Changelog
 
+## 0.5.10
+
+### English
+
+- New mail notifications and unread badges are off by default. The tray still shows the unread count.
+- Updates appear in the app and tray. Windows installation finishes quietly, and background launches leave the mail window closed until you open it.
+
+### 中文
+
+- 默认关闭新邮件弹窗和任务栏未读提示，托盘仍可查看未读数。
+- 更新提示留在应用和托盘。Windows 安装完成后由你手动打开，后台调用不会唤出邮件窗口。
+
 ## 0.5.9
 
 ### English
