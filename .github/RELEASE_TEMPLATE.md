@@ -27,7 +27,7 @@ These installers are unsigned previews. The Mac app is not notarized.
 
 ### License, source and support
 
-Lettide {{VERSION}} is licensed under [AGPL-3.0-only](https://github.com/shixi-11/lettide/blob/v{{VERSION}}/LICENSE). Free for personal and business use. [Corresponding source and build instructions](https://github.com/shixi-11/lettide/tree/v{{VERSION}}). Third-party components retain their own licenses.
+Lettide {{VERSION}} is licensed under [MIT](https://github.com/shixi-11/lettide/blob/v{{VERSION}}/LICENSE). Free for personal and business use. [Corresponding source and build instructions](https://github.com/shixi-11/lettide/tree/v{{VERSION}}). Third-party components retain their own licenses.
 
 [Support Lettide](https://shixilin.com/en/support) · Collaborations: [info@elevencapital.ltd](mailto:info@elevencapital.ltd).
 
@@ -56,6 +56,6 @@ Google 和 Microsoft 首次连接需要 OAuth 应用，QQ 邮箱需要授权码�
 
 ### 许可、源码与支持
 
-叠信 {{VERSION}} 采用 [AGPL-3.0-only](https://github.com/shixi-11/lettide/blob/v{{VERSION}}/LICENSE)，个人和企业均可免费使用。[对应版本源码与构建说明](https://github.com/shixi-11/lettide/tree/v{{VERSION}})。第三方组件保留各自许可。
+叠信 {{VERSION}} 采用 [MIT](https://github.com/shixi-11/lettide/blob/v{{VERSION}}/LICENSE)，个人和企业均可免费使用。[对应版本源码与构建说明](https://github.com/shixi-11/lettide/tree/v{{VERSION}})。第三方组件保留各自许可。
 
 [支持叠信](https://shixilin.com/zh/support) · 合作联系：[info@elevencapital.ltd](mailto:info@elevencapital.ltd)。

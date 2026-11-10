@@ -1,10 +1,13 @@
 import test from 'node:test';import assert from 'node:assert/strict';import {readFile} from 'node:fs/promises';import {installerAssets} from '../desktop/release-targets.mjs';import {verifyReleaseMetadata,verifyDownload,readReleaseMetadata} from '../scripts/Verify-ReleaseDownloads.mjs';
-const pkg=JSON.parse(await readFile(new URL('../desktop/package.json',import.meta.url),'utf8')),expected=installerAssets(pkg.version);
+const readme=await readFile(new URL('../README.md',import.meta.url),'utf8');
+const version=readme.match(/releases\/tag\/v([\d.]+)\)/)?.[1];
+assert.ok(version,'README must identify the published installer version');
+const expected=installerAssets(version);
 test('both README languages link every current Windows and Mac installer',async()=>{
- assert.equal(expected.length,4);for(const file of ['README.md','README.en.md']){const text=await readFile(new URL('../'+file,import.meta.url),'utf8');const links=[...text.matchAll(/https:\/\/github\.com\/shixi-11\/lettide\/releases\/download\/v[^)\s]+/g)].map(m=>m[0]);assert.equal(links.length,4,file+' must have four direct downloads');for(const asset of expected)assert.ok(links.includes(`https://github.com/shixi-11/lettide/releases/download/v${pkg.version}/${asset.name}`),file+' misses '+asset.name);}
+ assert.equal(expected.length,4);for(const file of ['README.md','README.en.md']){const text=await readFile(new URL('../'+file,import.meta.url),'utf8');const links=[...text.matchAll(/https:\/\/github\.com\/shixi-11\/lettide\/releases\/download\/v[^)\s]+/g)].map(m=>m[0]);assert.equal(links.length,4,file+' must have four direct downloads');for(const asset of expected)assert.ok(links.includes(`https://github.com/shixi-11/lettide/releases/download/v${version}/${asset.name}`),file+' misses '+asset.name);}
 });
 test('a missing Mac installer prevents release completion',()=>{
- const release={tag_name:'v'+pkg.version,assets:expected.map(a=>({...a,state:'uploaded',size:100}))};assert.equal(verifyReleaseMetadata(release,pkg.version).length,4);release.assets=release.assets.filter(a=>a.format!=='dmg');assert.throws(()=>verifyReleaseMetadata(release,pkg.version),/Missing complete installer/);
+ const release={tag_name:'v'+version,assets:expected.map(a=>({...a,state:'uploaded',size:100}))};assert.equal(verifyReleaseMetadata(release,version).length,4);release.assets=release.assets.filter(a=>a.format!=='dmg');assert.throws(()=>verifyReleaseMetadata(release,version),/Missing complete installer/);
 });
 test('download verification rejects a broken link, HTML login page and wrong installer bytes',async()=>{
  await assert.rejects(verifyDownload('https://example.test/x.deb','deb',async()=>new Response('Not found',{status:404})),/HTTP 404/);
@@ -24,6 +27,6 @@ test('download signatures can span network chunks and invalid DMG trailers are r
 });
 
 test('authenticated draft lookup uses the release list when tag lookup returns 404',async()=>{
- const release={tag_name:'v'+pkg.version,draft:true,assets:[]};const urls=[];const result=await readReleaseMetadata(pkg.version,{Authorization:'Bearer fictional-test-token'},{fetcher:async url=>{urls.push(url);return url.includes('/tags/')?new Response('{}',{status:404}):Response.json([release]);}});assert.deepEqual(result,release);assert.equal(urls.length,2);assert.match(urls[1],/releases\?per_page=100$/);
- await assert.rejects(readReleaseMetadata(pkg.version,{}, {fetcher:async()=>new Response('{}',{status:404})}),/HTTP 404/);
+ const release={tag_name:'v'+version,draft:true,assets:[]};const urls=[];const result=await readReleaseMetadata(version,{Authorization:'Bearer fictional-test-token'},{fetcher:async url=>{urls.push(url);return url.includes('/tags/')?new Response('{}',{status:404}):Response.json([release]);}});assert.deepEqual(result,release);assert.equal(urls.length,2);assert.match(urls[1],/releases\?per_page=100$/);
+ await assert.rejects(readReleaseMetadata(version,{}, {fetcher:async()=>new Response('{}',{status:404})}),/HTTP 404/);
 });

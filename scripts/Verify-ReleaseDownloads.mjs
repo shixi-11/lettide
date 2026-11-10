@@ -38,7 +38,11 @@ export async function readReleaseMetadata(version,headers,{fetcher=fetch}={}){
  throw Error('Release metadata HTTP '+response.status);
 }
 async function main(){
- const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..'),version=JSON.parse(await readFile(path.join(root,'desktop/package.json'),'utf8')).version;
+ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
+ const version=process.argv.includes('--published-readme')
+  ? (await readFile(path.join(root,'README.md'),'utf8')).match(/releases\/tag\/v([\d.]+)\)/)?.[1]
+  : JSON.parse(await readFile(path.join(root,'desktop/package.json'),'utf8')).version;
+ if(!version)throw Error('README must identify the published installer version');
  const headers={Accept:'application/vnd.github+json','User-Agent':'Lettide-release-check'},token=process.env.GH_TOKEN||process.env.GITHUB_TOKEN;if(token)headers.Authorization='Bearer '+token;
  const release=await readReleaseMetadata(version,headers),expected=verifyReleaseMetadata(release,version);let verified=0;if(release.draft&&!process.argv.includes('--metadata-only'))throw Error('Release is still a draft');
  if(!process.argv.includes('--metadata-only'))for(const asset of expected){const url=`https://github.com/shixi-11/lettide/releases/download/v${version}/${asset.name}`;let error;for(let attempt=0;attempt<3;attempt++){try{await verifyDownload(url,asset.format);error=null;break;}catch(e){error=e;if(attempt<2)await new Promise(r=>setTimeout(r,1500*(attempt+1)));}}if(error)throw error;verified++;console.log(JSON.stringify({download:asset.name,publicAccess:true}));}

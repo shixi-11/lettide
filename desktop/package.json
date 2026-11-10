@@ -1,9 +1,9 @@
 {
   "name": "lettide",
-  "version": "0.5.10",
+  "version": "0.5.11",
   "description": "Lettide — desktop email with online translation and shared AI mail tools",
   "author": "Shixi Lin",
-  "license": "AGPL-3.0-only",
+  "license": "MIT",
   "private": true,
   "main": "main.cjs",
   "scripts": {

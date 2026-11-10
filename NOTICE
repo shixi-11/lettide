@@ -1,7 +1,7 @@
 Copyright 2026 Shixi Lin.
 
-Lettide's original code is licensed under the GNU Affero General Public License,
-version 3 only (SPDX: AGPL-3.0-only), starting with version 0.5.8.
+Lettide's original code is licensed under the MIT License (SPDX: MIT)
+starting with version 0.5.11.
 See LICENSE for the complete terms. This program comes without any warranty.
 Corresponding source and build instructions: https://github.com/shixi-11/lettide
 Earlier release tags retain their originally supplied licenses.

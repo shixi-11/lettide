@@ -1,5 +1,15 @@
 # 更新记录 / Changelog
 
+## 0.5.11
+
+### English
+
+- Lettide’s original code now uses the MIT License. Third-party components and optional model weights retain their own licenses.
+
+### 中文
+
+- 叠信自有代码改用 MIT 许可证。第三方组件与可选模型权重适用各自的许可。
+
 ## 0.5.10
 
 ### English

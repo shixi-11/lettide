@@ -70,9 +70,9 @@ The repository includes application code and build scripts. Each release links t
 
 ## License
 
-Lettide is open-source software under the [GNU Affero General Public License v3.0 only (AGPL-3.0-only)](LICENSE). Official installers are free for personal and business use, including commercial work. When distributing a covered modified version, provide its corresponding source under the AGPLv3 terms. If users interact with a modified version over a network, offer those users access to its corresponding source as required by the license. Charging for distribution is permitted; distributing a covered derivative as proprietary software is not.
+Lettide's original code in the development branch is available under the [MIT License](LICENSE). Official installers are free for personal and business use. The MIT License permits use, modification, and redistribution with the copyright and license notices retained.
 
-The software is provided without warranty. Using Lettide does not require publishing your emails, credentials or independent business materials. See [copyright and third-party notices](NOTICE). Third-party dependencies and [optional offline model weights](docs/translation-model.md) retain their separate licenses; the weights are not licensed under the AGPLv3. Earlier tags and published releases retain the licenses supplied with them.
+See the [copyright and third-party notices](NOTICE). Third-party dependencies and [optional offline model weights](docs/translation-model.md) retain their own licenses. Published installers and historical tags are covered by the licenses supplied with them.
 
 ## Support and collaboration
 

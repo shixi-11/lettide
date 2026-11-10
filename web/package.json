@@ -1,9 +1,9 @@
 {
   "name": "mail-workspace-ui",
-  "version": "0.5.10",
+  "version": "0.5.11",
   "private": true,
   "type": "module",
-  "license": "AGPL-3.0-only",
+  "license": "MIT",
   "scripts": {
     "build": "vite build",
     "dev": "vite --host 127.0.0.1"
