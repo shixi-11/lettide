@@ -1,10 +1,12 @@
 # 叠信 · Lettide
 
+**简体中文** | [English](README.en.md)
+
 **多个邮箱，一处从容处理。**
 
 叠信是一款适用于 Windows 和 macOS 的开源桌面邮箱客户端。把多个 Gmail、Outlook、GoDaddy 和 QQ 邮箱放在一起，阅读、搜索、整理和回复邮件；遇到外文，点一下即可在线翻译。Codex、Claude Code 和 Claude Desktop 也能通过本机 MCP 工具共用已连接的邮箱。
 
-[English](README.en.md) · [下载安装](#下载安装) · [邮箱接入](docs/邮箱接入.md) · [更新记录](CHANGELOG.md)
+[下载安装](#下载安装) · [邮箱接入](docs/邮箱接入.md) · [更新记录](CHANGELOG.md)
 
 ## 现在可以做什么
 

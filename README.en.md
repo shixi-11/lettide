@@ -1,10 +1,12 @@
 # Lettide
 
+[简体中文](README.md) | **English**
+
 **All your mail, in one calm place.**
 
 Lettide is an open-source desktop email client for Windows and macOS. Bring multiple Gmail, Outlook, GoDaddy and QQ Mail accounts together to read, search, organize and reply to mail, with online translation when you need it. Codex, Claude Code and Claude Desktop can also share your connected accounts through local MCP tools.
 
-[中文说明](README.md) · [Download](#download) · [Account setup](docs/account-setup.en.md) · [Changelog](CHANGELOG.md)
+[Download](#download) · [Account setup](docs/account-setup.en.md) · [Changelog](CHANGELOG.md)
 
 ## What you can do
 
